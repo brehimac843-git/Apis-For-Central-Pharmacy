@@ -5,7 +5,7 @@ import { pool } from "../db";
 // logic for aggregating stock from all pharmacies
 export const aggregateStock = async (req: Request, res: Response) => {
   try {
-    const drugName = req.params.drug;
+    const drugName = req.params.drug as String;
     const { rows: pharmacies } = await pool.query("SELECT * FROM pharmacies");
 
     const results = await Promise.all(
@@ -22,10 +22,10 @@ export const aggregateStock = async (req: Request, res: Response) => {
             pharmacy: pharmacy.name,
             city: pharmacy.city,
             stock: stock.stock_quantity,
-            price: stock.selling_price,
+            price: price: parseFloat(stock.selling_price),
             amo_supported: pharmacy.amo_supported,
-            latitude: pharmacy.latitude,
-            longitude: pharmacy.longitude
+            latitude: parseFloat(pharmacy.latitude),
+            longitude: parseFloat(pharmacy.longitude)
           };
         } catch {
           console.log(`Pharmacy ${pharmacy.name} unreachable`);

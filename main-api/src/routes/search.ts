@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { aggregateStock, getGlobalSuggestions } from "../controllers/searchController";
+import { aggregateStock, getGlobalSuggestions } from "../controller/searchController";
 
 const router = Router();
 
