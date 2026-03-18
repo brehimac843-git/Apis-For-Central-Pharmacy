@@ -1,0 +1,81 @@
+:root {
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  /* Force Light Theme Colors */
+  color: #1e293b;
+  background-color: #f8fafc; /* Soft medical blue-grey background */
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* IMPORTANT: We removed the @media (prefers-color-scheme: dark) 
+   to ensure the map and text remain visible for your demo.
+*/
+
+body {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+h1 {
+  font-size: 3rem;
+  line-height: 1.1;
+  color: #2563eb; /* Primary Blue */
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+h2 {
+  font-weight: 700;
+  color: #334155;
+}
+
+/* --- LEAFLET UI FIXES --- */
+
+/* Fix zoom buttons appearing invisible in some browsers */
+.leaflet-control-zoom a {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+/* Give the map a nice shadow and rounded corners */
+.leaflet-container {
+  border-radius: 16px;
+  border: 2px solid #e2e8f0;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  z-index: 1; /* Keep it below the suggestions dropdown if needed */
+}
+
+/* Fix for the attribution text at the bottom right */
+.leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.8) !important;
+  padding: 2px 8px !important;
+  border-radius: 4px;
+}
+
+/* Custom Scrollbar for the Pharmacy List */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}

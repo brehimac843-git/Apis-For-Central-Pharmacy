@@ -22,7 +22,7 @@ export const aggregateStock = async (req: Request, res: Response) => {
             pharmacy: pharmacy.name,
             city: pharmacy.city,
             stock: stock.stock_quantity,
-            price: price: parseFloat(stock.selling_price),
+            price: parseFloat(stock.selling_price),
             amo_supported: pharmacy.amo_supported,
             latitude: parseFloat(pharmacy.latitude),
             longitude: parseFloat(pharmacy.longitude)
