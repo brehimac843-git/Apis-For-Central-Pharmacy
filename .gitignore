@@ -1,0 +1,10 @@
+# Block local dependencies and builds
+node_modules/
+dist/
+
+# Block environment secret files across all apps
+.env
+
+# Block local prisma logs or generated SQLite files (if any)
+*.db
+*.db-journal
