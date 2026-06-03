@@ -1,23 +1,28 @@
 import { Request, Response } from 'express';
-import { pool } from '../../db';
+import { prisma } from '../../db/index';
 
 export const listDrugs = async (req: Request, res: Response) => {
   try {
-    // ✅ Updated query with LEFT JOIN to get the AMO rate for each drug
-    const { rows } = await pool.query(
-      `SELECT
-      d.id,
-      d.name,
-      d.dosage,
-      d.form,
-      d.selling_price,
-      d.stock_quantity,
-      a.reimbursement_rate as amo_rate
-      FROM drugs d
-      LEFT JOIN amo_drugs a ON d.id = a.drug_id
-      WHERE d.stock_quantity > 0`
-    );
-    res.json(rows);
+    const drugs = await prisma.drug.findMany({
+      where: {
+        stock_quantity: { gt: 0 }
+      },
+      include: {
+        amoDrug: true 
+      }
+    });
+
+    const formattedRows = drugs.map((d: any) => ({
+      id: d.id,
+      name: d.name,
+      dosage: d.dosage,
+      form: d.form,
+      selling_price: parseFloat(d.selling_price),
+      stock_quantity: d.stock_quantity,
+      amo_rate: d.amoDrug ? d.amoDrug.reimbursement_rate : null
+    }));
+
+    res.json(formattedRows);
   } catch (error) {
     console.error("Error in listDrugs:", error);
     res.status(500).json({ error: "Server error" });
@@ -29,11 +34,14 @@ export const getSuggestions = async (req: Request, res: Response) => {
     const query = req.query.q as string;
     if (!query || query.length < 2) return res.json([]);
 
-    const { rows } = await pool.query(
-      `SELECT name FROM drugs WHERE name % $1
-      ORDER BY similarity(name, $1) DESC LIMIT 10`,
-                                      [query]
-    );
+    // Your raw SQL logic works seamlessly with the new driver adapter!
+    const rows = await prisma.$queryRaw<{ name: string }[]>`
+      SELECT name FROM drugs 
+      WHERE name % ${query}
+      ORDER BY similarity(name, ${query}) DESC 
+      LIMIT 10
+    `;
+
     res.json(rows.map(r => r.name));
   } catch (error) {
     console.error("Error in getSuggestions:", error);

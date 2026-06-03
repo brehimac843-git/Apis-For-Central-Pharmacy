@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"  
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+ 
+
+model Pharmacy {
+  id            Int     @id @default(autoincrement())
+  name          String
+  address       String
+  city          String
+  phone         String
+  email         String
+  latitude      Decimal
+  longitude     Decimal
+  amo_supported Boolean
+  api_url       String
+
+  @@map("pharmacies")  
+}

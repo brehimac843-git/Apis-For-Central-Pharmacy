@@ -1,12 +1,21 @@
 import { Request, Response } from "express";
 import axios from "axios";
-import { pool } from "../db";
+
+ 
+ 
+ 
+
+ 
+ 
+import { prisma } from "../db"; 
 
 // logic for aggregating stock from all pharmacies
 export const aggregateStock = async (req: Request, res: Response) => {
   try {
-    const drugName = req.params.drug as String;
-    const { rows: pharmacies } = await pool.query("SELECT * FROM pharmacies");
+    const drugName = req.params.drug as string;
+    
+    // This now uses your custom adapter via the imported `prisma` instance!
+    const pharmacies = await prisma.pharmacy.findMany();
 
     const results = await Promise.all(
       pharmacies.map(async (pharmacy) => {
@@ -24,8 +33,8 @@ export const aggregateStock = async (req: Request, res: Response) => {
             stock: stock.stock_quantity,
             price: parseFloat(stock.selling_price),
             amo_supported: pharmacy.amo_supported,
-            latitude: parseFloat(pharmacy.latitude),
-            longitude: parseFloat(pharmacy.longitude)
+            latitude: parseFloat(pharmacy.latitude as any),
+            longitude: parseFloat(pharmacy.longitude as any)
           };
         } catch {
           console.log(`Pharmacy ${pharmacy.name} unreachable`);
@@ -47,7 +56,8 @@ export const getGlobalSuggestions = async (req: Request, res: Response) => {
     const query = req.query.q as string;
     if (!query || query.length < 2) return res.json([]);
 
-    const { rows: pharmacies } = await pool.query("SELECT * FROM pharmacies");
+    // This also now uses your custom adapter!
+    const pharmacies = await prisma.pharmacy.findMany();
 
     const responses = await Promise.all(
       pharmacies.map(async (pharmacy) => {
