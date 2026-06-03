@@ -1,0 +1,11 @@
+{
+  "name": "reworked-apis",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "main-api",
+    "api1",
+    "api2",
+    "api3"
+  ]
+}
