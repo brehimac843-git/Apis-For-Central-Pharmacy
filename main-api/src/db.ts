@@ -1,6 +1,9 @@
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "./generated/prisma/client"
+import { PrismaClient } from "./generated/prisma/client";
+import dotenv from "dotenv"; // <-- ADD THIS
+
+dotenv.config(); // <-- ADD THIS to load the .env file immediately!
 
 // 1. Create your standard pg pool using your environment variable
 const pool = new Pool({

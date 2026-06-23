@@ -1,19 +1,12 @@
 import { Request, Response } from "express";
 import axios from "axios";
-
- 
- 
- 
-
- 
- 
-import { prisma } from "../db"; 
+import { prisma } from "../db";
 
 // logic for aggregating stock from all pharmacies
 export const aggregateStock = async (req: Request, res: Response) => {
   try {
     const drugName = req.params.drug as string;
-    
+
     // This now uses your custom adapter via the imported `prisma` instance!
     const pharmacies = await prisma.pharmacy.findMany();
 
@@ -32,9 +25,9 @@ export const aggregateStock = async (req: Request, res: Response) => {
             city: pharmacy.city,
             stock: stock.stock_quantity,
             price: parseFloat(stock.selling_price),
-            amo_supported: pharmacy.amo_supported,
-            latitude: parseFloat(pharmacy.latitude as any),
-            longitude: parseFloat(pharmacy.longitude as any)
+                     amo_supported: pharmacy.amo_supported,
+                     latitude: parseFloat(pharmacy.latitude as any),
+                     longitude: parseFloat(pharmacy.longitude as any)
           };
         } catch {
           console.log(`Pharmacy ${pharmacy.name} unreachable`);
@@ -46,6 +39,7 @@ export const aggregateStock = async (req: Request, res: Response) => {
     const filtered = results.filter((r) => r !== null).sort((a: any, b: any) => a.price - b.price);
     res.json(filtered);
   } catch (error) {
+    console.error("AGGREGATION ERROR:", error); // <-- Added this!
     res.status(500).json({ error: "Aggregation failed" });
   }
 };
@@ -64,7 +58,8 @@ export const getGlobalSuggestions = async (req: Request, res: Response) => {
         try {
           const response = await axios.get(`${pharmacy.api_url}/api/suggestions?q=${query}`);
           return response.data;
-        } catch {
+        } catch (axiosError) {
+          console.error(`Could not fetch from ${pharmacy.api_url}`);
           return [];
         }
       })
@@ -73,6 +68,7 @@ export const getGlobalSuggestions = async (req: Request, res: Response) => {
     const merged = [...new Set(responses.flat())];
     res.json(merged.slice(0, 10));
   } catch (error) {
+    console.error("SUGGESTION ERROR:", error); // <-- Added this!
     res.status(500).json({ error: "Suggestions failed" });
   }
 };
