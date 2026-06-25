@@ -1,0 +1,551 @@
+src/components/
+catalogue.tsx:
+import { useState, useEffect } from "react";
+
+type CatalogueDrug = {
+  name: string;
+  category: string;
+  minPrice: number;
+  availableAt: number;
+};
+
+// We add a prop so App.tsx knows when a drug is clicked
+type Props = {
+  onSelectDrug: (drugName: string) => void;
+};
+
+export default function Catalogue({ onSelectDrug }: Props) {
+  const [drugs, setDrugs] = useState<CatalogueDrug[]>([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+
+  const fetchCatalogue = async (pageNumber: number) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`http://localhost:3000/api/catalogue?page=${pageNumber}&limit=50`);
+      const result = await response.json();
+
+      if (result.data.length === 0 || pageNumber >= result.totalPages) {
+        setHasMore(false);
+      }
+
+      // ✅ FIX: Prevent React Strict Mode from double-adding items
+      setDrugs((prevDrugs) => {
+        // Create a list of all the drug names we already have showing
+        const existingNames = new Set(prevDrugs.map(d => d.name));
+        
+        // Filter the incoming data so we only keep drugs we don't already have
+        const newDrugs = result.data.filter((d: CatalogueDrug) => !existingNames.has(d.name));
+        
+        return [...prevDrugs, ...newDrugs];
+      });
+      
+    } catch (error) {
+      console.error("Error fetching catalogue:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCatalogue(page);
+  }, [page]);
+
+  // ✅ This groups the flat list of drugs into categories!
+  const groupedDrugs = drugs.reduce((acc, drug) => {
+    // If the category doesn't exist yet, make a fallback called "General"
+    const cat = drug.category || "General"; 
+    if (!acc[cat]) {
+      acc[cat] = [];
+    }
+    acc[cat].push(drug);
+    return acc;
+  }, {} as Record<string, CatalogueDrug[]>);
+
+  return (
+    <div style={{ padding: "20px", background: "#1e293b", borderRadius: "16px", marginTop: "20px", textAlign: "left" }}>
+      <h2 style={{ color: "white", marginBottom: "20px" }}>Medication Catalogue</h2>
+
+      {Object.keys(groupedDrugs).map((category) => (
+        <div key={category} style={{ marginBottom: "35px" }}>
+          {/* Category Header (e.g., Anti-paludique) */}
+          <h3 style={{ color: "#38bdf8", borderBottom: "1px solid #334155", paddingBottom: "10px", textTransform: "capitalize" }}>
+            {category}
+          </h3>
+          
+          {/* Grid of drugs for this category */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "15px", marginTop: "15px" }}>
+            {groupedDrugs[category].map((drug, index) => (
+              <div
+                key={index}
+                onClick={() => onSelectDrug(drug.name)}
+                style={{
+                  backgroundColor: "#0f172a",
+                  padding: "15px",
+                  borderRadius: "10px",
+                  border: "1px solid #334155",
+                  cursor: "pointer",
+                  transition: "border-color 0.2s"
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.borderColor = "#3b82f6"}
+                onMouseLeave={(e) => e.currentTarget.style.borderColor = "#334155"}
+              >
+                <h4 style={{ color: "#e2e8f0", margin: "0 0 8px 0" }}>{drug.name}</h4>
+                <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>
+                  Starting at <strong style={{ color: "#38bdf8" }}>{drug.minPrice} FCFA</strong>
+                </p>
+                <p style={{ color: "#64748b", fontSize: "11px", margin: "5px 0 0 0" }}>
+                  Available in {drug.availableAt} pharmacies
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {hasMore && (
+        <div style={{ textAlign: "center", marginTop: "30px" }}>
+          <button
+            onClick={() => setPage((p) => p + 1)}
+            style={{ padding: "10px 24px", background: "#2563eb", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold" }}
+          >
+            {loading ? "Loading more..." : "Load More Categories"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+PharmacyDetail.tsx:
+import PharmacyMap from "./PharmacyMap"
+
+type Props = {
+  pharmacy: any;
+  onBack: () => void;
+}
+
+export default function PharmacyDetail({ pharmacy, onBack }: Props) {
+  return (
+    <div className="app-container" style={{ textAlign: 'left' }}>
+      <button onClick={onBack} style={{ marginBottom: '20px', padding: '8px 16px' }}>
+        ← Back to Results
+      </button>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px' }}>
+        {/* INFO SIDE */}
+        <div>
+          <h1 style={{ textAlign: 'left', fontSize: '2.5rem' }}>{pharmacy.pharmacy}</h1>
+          <div className="pharmacy-card" style={{ border: 'none', boxShadow: 'none', background: '#f1f5f9' }}>
+            <p style={{ fontSize: '1.2rem' }}><strong>City:</strong> {pharmacy.city}</p>
+            <p className="price-tag" style={{ display: 'inline-block' }}>{pharmacy.price} FCFA</p>
+            <p style={{ marginTop: '15px' }}><strong>Availability:</strong> {pharmacy.stock} units currently in stock</p>
+            <p><strong>Insurance:</strong> {pharmacy.amo_supported ? "✅ AMO Accepted" : "❌ Cash Only"}</p>
+          </div>
+          
+          <div style={{ marginTop: '20px', padding: '15px', border: '1px dashed #cbd5e1', borderRadius: '10px' }}>
+            <h4>Pharmacist Note</h4>
+            <p style={{ color: '#64748b' }}>Please call ahead to reserve your medication. Stock levels update every 30 minutes.</p>
+          </div>
+        </div>
+
+        {/* MAP SIDE */}
+        <div>
+          <h3>Location</h3>
+          <PharmacyMap pharmacies={[pharmacy]} />
+        </div>
+      </div>
+    </div>
+  )
+}
+PharmacyMap.tsx:
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { useEffect } from "react";
+import "leaflet/dist/leaflet.css";
+import "../utils/fixLeafletIcon";
+
+type Pharmacy = {
+  pharmacy: string;
+  latitude: number;
+  longitude: number;
+  price: number;
+  stock: number;
+  amo_supported: boolean;
+};
+
+// ✅ HELPER COMPONENT: This tells the map to move when the results change
+function ChangeView({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.setView(center, 13); // 13 is the zoom level
+    }
+  }, [center, map]);
+  return null;
+}
+
+export default function PharmacyMap({ pharmacies }: { pharmacies: Pharmacy[] }) {
+  if (pharmacies.length === 0) return null;
+
+  // We take the first pharmacy as the center point
+  const center: [number, number] = [
+    pharmacies[0].latitude,
+    pharmacies[0].longitude,
+  ];
+
+  return (
+    <div style={{ height: "400px", width: "100%", marginTop: "20px", borderRadius: "10px", overflow: "hidden" }}>
+    <MapContainer
+    center={center}
+    zoom={13}
+    style={{ height: "100%", width: "100%" }}
+    >
+    {/* ✅ This makes the map jump to the new location */}
+    <ChangeView center={center} />
+
+    <TileLayer
+    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+  />
+
+  {pharmacies.map((p, index) => (
+    <Marker key={index} position={[p.latitude, p.longitude]}>
+    <Popup>
+    <div style={{ fontFamily: "Arial" }}>
+    <strong style={{ fontSize: "16px" }}>{p.pharmacy}</strong> <br />
+    <span style={{ color: "#2c3e50" }}>💰 {p.price} FCFA</span> <br />
+    <span>📦 Stock: {p.stock}</span> <br />
+    <span>{p.amo_supported ? "✅ AMO Supported" : "❌ No AMO"}</span>
+    </div>
+    </Popup>
+    </Marker>
+  ))}
+  </MapContainer>
+  </div>
+  );
+}
+src/
+app.tsx:
+import { useState, useRef } from "react"
+import axios from "axios"
+import PharmacyMap from "./components/PharmacyMap"
+import Catalogue from "./components/Catalogue"
+import "./App.css"
+
+const API = "http://localhost:3000"
+
+type Pharmacy = {
+  pharmacy: string
+  city: string
+  latitude: number
+  longitude: number
+  price: number
+  stock: number
+  amo_supported: boolean
+  amo_rate: number | null 
+}
+
+function App() {
+  const [query, setQuery] = useState("")
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(-1) 
+  const [results, setResults] = useState<Pharmacy[]>([])
+  const [selectedPharmacy, setSelectedPharmacy] = useState<Pharmacy | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [showCatalogue, setShowCatalogue] = useState(false)
+  const [filterAmo, setFilterAmo] = useState(false)
+  const [sortByPrice, setSortByPrice] = useState("default")
+
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 🚀 THE FIX: Holds the active HTTP request so we can kill it if the user backspaces/changes text
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  async function fetchSuggestions(q: string) {
+    if (q.trim().length < 1) { 
+      setSuggestions([]); 
+      return; 
+    }
+
+    // 🚨 Cancel any previous suggestion request that is still running in the background
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create a new cancel token for this specific request
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    try {
+      const res = await axios.get(`${API}/api/suggestions?q=${encodeURIComponent(q)}`, {
+        signal: controller.signal // Link the abort token to Axios
+      })
+      setSuggestions(res.data)
+    } catch (err) { 
+      if (axios.isCancel(err)) {
+        console.log("Stale suggestion request canceled safely.");
+      } else {
+        console.error(err);
+      }
+    }
+  }
+
+  async function searchDrug(name: string) {
+    if (!name.trim()) return;
+
+    // Clear any pending autocomplete actions completely when performing a final search
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    if (abortControllerRef.current) abortControllerRef.current.abort();
+
+    setLoading(true)
+    try {
+      const res = await axios.get(`${API}/api/aggregate-stock/${encodeURIComponent(name.trim())}`)
+      setResults(res.data)
+      setSuggestions([])
+      setShowSuggestions(false)
+      setFilterAmo(false)
+      setSortByPrice("default")
+    } catch (err) { 
+      console.error(err) 
+    } finally { 
+      setLoading(false) 
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || suggestions.length === 0) {
+      if (e.key === "Enter" && query.trim().length >= 1) {
+        searchDrug(query);
+      }
+      return;
+    }
+
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setActiveIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : prev));
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setActiveIndex((prev) => (prev > 0 ? prev - 1 : prev));
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (activeIndex >= 0 && activeIndex < suggestions.length) {
+          const selectedValue = suggestions[activeIndex];
+          setQuery(selectedValue);
+          searchDrug(selectedValue);
+        } else if (suggestions.length > 0) {
+          const topRecommendation = suggestions[0];
+          setQuery(topRecommendation);
+          searchDrug(topRecommendation);
+        } else {
+          searchDrug(query);
+        }
+        break;
+      case "Escape":
+        setShowSuggestions(false);
+        break;
+    }
+  };
+
+  const extractAmoRate = (pharmacy: Pharmacy): number => {
+    return pharmacy.amo_rate ?? 0;
+  }
+
+  const displayedResults = results
+    .filter(r => filterAmo ? extractAmoRate(r) > 0 : true)
+    .sort((a, b) => {
+      if (sortByPrice === "price_asc") return a.price - b.price;
+      if (sortByPrice === "price_desc") return b.price - a.price;
+      return 0;
+    });
+
+  if (selectedPharmacy) {
+    const rate = extractAmoRate(selectedPharmacy);
+    const discount = selectedPharmacy.price * (rate / 100);
+    const finalPrice = selectedPharmacy.price - discount;
+
+    return (
+      <div className="app-container">
+        <button className="back-button" onClick={() => setSelectedPharmacy(null)}>← Back to results</button>
+        <main className="detail-grid">
+          <section className="info-section">
+            <h1 className="detail-title">{selectedPharmacy.pharmacy}</h1>
+            <div className="detail-card">
+              <p className="detail-city">📍 {selectedPharmacy.city}, Mali</p>
+              
+              <div className="price-section">
+                <div className="price-badge">{selectedPharmacy.price} FCFA</div>
+                {rate > 0 && (
+                  <div className="amo-tag">✅ AMO Covered: {rate}% (-{discount.toFixed(0)} FCFA)</div>
+                )}
+              </div>
+
+              {rate > 0 ? (
+                <div className="total-to-pay">
+                  <strong>Total to pay:</strong> <span>{finalPrice.toFixed(0)} FCFA</span>
+                </div>
+              ) : (
+                <div className="total-to-pay">
+                  <strong>Price:</strong> <span>{selectedPharmacy.price} FCFA</span>
+                </div>
+              )}
+              
+              <a className="directions-button" href={`https://www.google.com/maps/search/?api=1&query=${selectedPharmacy.latitude},${selectedPharmacy.longitude}`} target="_blank" rel="noreferrer">Get Directions ↗</a>
+            </div>
+          </section>
+          <section className="map-section">
+            <h3 style={{ marginBottom: '15px', color: '#1e293b' }}>Location on Map</h3>
+            <PharmacyMap pharmacies={[selectedPharmacy]} />
+          </section>
+        </main>
+      </div>
+    )
+  }
+
+  return (
+    <div className="app-container">
+      <header>
+        <div className="logo-area">
+          <span style={{ fontSize: '3rem' }}>💊</span>
+          <h1>Pharmacy Finder</h1>
+        </div>
+        
+        <div className="search-wrapper" style={{ position: 'relative' }}>
+          <div style={{ display: 'flex', gap: '10px', width: '100%', maxWidth: '600px', margin: '0 auto' }}>
+            <input
+              className="search-input"
+              placeholder="Search medicine (e.g. Paracetamol)..."
+              value={query}
+              style={{ flex: 1 }}
+              onChange={(e) => {
+                const val = e.target.value;
+                setQuery(val);
+                setActiveIndex(-1);
+                
+                // 🚨 FIX: Force dropdown to open back up immediately when typing/backspacing
+                setShowSuggestions(true);
+
+                if (typingTimeoutRef.current) {
+                  clearTimeout(typingTimeoutRef.current);
+                }
+
+                typingTimeoutRef.current = setTimeout(() => {
+                  fetchSuggestions(val);
+                }, 250);
+              }}
+              onKeyDown={handleKeyDown}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            />
+            <button 
+              onClick={() => { setShowCatalogue(!showCatalogue); setSelectedPharmacy(null); setResults([]); }}
+              style={{ padding: '0 20px', borderRadius: '24px', background: showCatalogue ? '#ef4444' : '#2563eb', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+            >
+              {showCatalogue ? "Close Catalogue" : "Browse Catalogue"}
+            </button>
+          </div>
+
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="suggestions-dropdown" style={{ 
+              maxWidth: '600px', 
+              margin: '0 auto', 
+              position: 'absolute', 
+              left: 0, 
+              right: 0, 
+              zIndex: 1000, 
+              backgroundColor: '#0f172a',
+              border: '1px solid #334155',
+              borderRadius: '8px',
+              marginTop: '5px'
+            }}>
+              {suggestions.map((s, i) => (
+                <div 
+                  key={i} 
+                  className="suggestion-item" 
+                  style={{
+                    padding: '10px 15px',
+                    cursor: 'pointer',
+                    color: '#e2e8f0',
+                    backgroundColor: i === activeIndex ? '#1e293b' : 'transparent'
+                  }}
+                  onMouseDown={() => {
+                    setQuery(s);
+                    setShowSuggestions(false);
+                    searchDrug(s);
+                  }}
+                  onMouseEnter={() => setActiveIndex(i)}
+                >
+                  🔍 {s}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </header>
+
+      <main className="results-list">
+        {showCatalogue ? (
+          <Catalogue onSelectDrug={(drugName) => { setQuery(drugName); setShowCatalogue(false); searchDrug(drugName); }} />
+        ) : (
+          <>
+            <h2>{loading ? "Searching databases..." : results.length > 0 ? "Available Pharmacies" : ""}</h2>
+            
+            {results.length > 0 && (
+              <div className="filter-bar" style={{ display: 'flex', gap: '20px', marginBottom: '20px', alignItems: 'center', backgroundColor: '#1e293b', padding: '10px 15px', borderRadius: '8px', border: '1px solid #334155' }}>
+                <label style={{ color: '#e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="checkbox" checked={filterAmo} onChange={(e) => setFilterAmo(e.target.checked)} /> Only show AMO Covered ✅
+                </label>
+                <select value={sortByPrice} onChange={(e) => setSortByPrice(e.target.value)} style={{ padding: '8px', borderRadius: '5px', background: '#0f172a', color: '#e2e8f0', cursor: 'pointer' }}>
+                  <option value="default">Sort: Default</option>
+                  <option value="price_asc">Price: Low to High</option>
+                  <option value="price_desc">Price: High to Low</option>
+                </select>
+              </div>
+            )}
+
+            <div className="cards-grid">
+              {displayedResults.map((r, i) => {
+                const cardRate = extractAmoRate(r);
+                return (
+                  <div key={i} className="pharmacy-card clickable" onClick={() => setSelectedPharmacy(r)}>
+                    <div className="card-header">
+                      <h3>{r.pharmacy}</h3>
+                      <span className="price-tag">{r.price} FCFA</span>
+                    </div>
+                    <p>📍 {r.city}, Mali</p>
+                    <div className="card-footer">
+                      {cardRate > 0 ? <span className="amo-label">AMO {cardRate}%</span> : ""}
+                    </div>
+                    <span className="view-details-link">View details & map →</span>
+                  </div>
+                );
+              })}
+
+              {displayedResults.length === 0 && results.length > 0 && (
+                <p style={{ color: '#94a3b8', gridColumn: '1 / -1', textAlign: 'center', padding: '20px' }}>
+                  No pharmacies match your current filters.
+                </p>
+              )}
+            </div>
+          </>
+        )}
+      </main>
+    </div>
+  )
+}
+
+export default App
+main.tsx:
+import 'leaflet/dist/leaflet.css';
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.tsx'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)

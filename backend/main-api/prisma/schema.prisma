@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client"
+output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // ❌ DELETE THE URL LINE FROM HERE ENTIRELY
+}
+
+model Pharmacy {
+  id            Int              @id @default(autoincrement())
+  name          String
+  address       String
+  city          String
+  phone         String
+  email         String
+  latitude      Decimal
+  longitude     Decimal
+  amo_supported Boolean
+  api_url       String
+
+  visibilityRules DrugVisibility[]
+  agents         AgentRecord[]
+  activityLogs   AgentActivityLog[]
+
+  @@map("pharmacies")  
+}
+
+model AgentRecord {
+  id          String   @id @default(uuid())
+  agentNumber String   @unique
+  name        String
+  pharmacyId  Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  pharmacy    Pharmacy @relation(fields: [pharmacyId], references: [id])
+
+  @@map("agents")
+}
+
+model AgentActivityLog {
+  id          String   @id @default(uuid())
+  agentNumber String
+  agentName   String
+  pharmacyId  Int
+  action      String
+  details     String?
+  createdAt   DateTime @default(now())
+
+  pharmacy    Pharmacy @relation(fields: [pharmacyId], references: [id])
+
+  @@map("agent_activity_logs")
+}
+
+model DrugVisibility {
+  id         String   @id @default(uuid())
+  pharmacyId Int
+  drugName   String   // The clean name of the drug (e.g., "paracetamol")
+  isHidden   Boolean  @default(false)
+
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id])
+
+  @@unique([pharmacyId, drugName]) 
+  @@map("drug_visibilities")
+}
+
+model CentralAdmin {
+  id       String @id @default(uuid())
+  email    String @unique
+  password String
+  
+  @@map("central_admins")
+}
+
+// 🛒 Public Client-Facing Users (Consumers)
+model PublicUser {
+  id        String          @id @default(uuid())
+  name      String          // Seamlessly stores the combined "First Name + Surname" sent by the frontend
+  email     String          @unique
+  password  String          // Hashed password
+  createdAt DateTime        @default(now())
+  
+  history   SearchHistory[] // Relation link to track historical search data
+
+  @@map("public_users")
+}
+
+// 📜 Persistent Database Tracker for Public User Searches
+model SearchHistory {
+  id           String     @id @default(uuid())
+  publicUserId String
+  query        String     // The term searched (e.g., "Amoxicillin")
+  createdAt    DateTime   @default(now())
+
+  publicUser   PublicUser @relation(fields: [publicUserId], references: [id], onDelete: Cascade)
+
+  @@map("search_histories")
+}

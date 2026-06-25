@@ -1,0 +1,1 @@
+ok now let add the admin one so he can add new pharmacies, rename, remove, and can also see at all time which agent connect to which pharmacy and what they did the time that they took and what are the current drugs display on every pharmacy also can add or remove and agent and also can toggle the visibility himself 

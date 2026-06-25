@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "workspaces": [
-    "main-api",
-    "api1",
-    "api2",
-    "api3"
+    "backend/main-api",
+    "backend/api1",
+    "backend/api2",
+    "backend/api3",
+    "frontend-public",
+    "frontend-backoffice"
   ]
 }
