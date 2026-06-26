@@ -75,57 +75,50 @@ export default function Catalogue({ onSelectDrug }: Props) {
   }, {} as Record<string, CatalogueDrug[]>);
 
   return (
-    <div style={{ padding: "20px", background: "#1e293b", borderRadius: "16px", marginTop: "20px", textAlign: "left" }}>
-      <h2 style={{ color: "white", marginBottom: "20px" }}>Medication Catalogue</h2>
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6 sm:p-8">
+      <h2 className="text-2xl font-bold text-slate-900 mb-6">Medication Catalogue</h2>
+      <div className="flex gap-3 mb-6 items-center flex-wrap">
         <input
           value={filterText}
           onChange={(e) => setFilterText(e.target.value)}
           placeholder="Search catalogue..."
-          style={{ flex: 1, minWidth: '180px', padding: '12px', borderRadius: '12px', border: '1px solid #334155', background: '#0f172a', color: 'white' }}
+          className="flex-1 min-w-[180px] px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
         />
         <button
+          type="button"
           onClick={() => setFilterText("")}
-          style={{ padding: '12px 18px', borderRadius: '12px', border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer' }}
+          className="px-5 py-3 rounded-xl bg-primary-600 text-white hover:bg-primary-700 transition font-semibold"
         >
           Clear
         </button>
       </div>
 
       {catalogueError ? (
-        <p style={{ color: '#f87171' }}>{catalogueError}</p>
+        <p className="text-red-600">{catalogueError}</p>
       ) : filteredDrugs.length === 0 ? (
-        <p style={{ color: '#94a3b8' }}>No catalogue entries match your search.</p>
+        <p className="text-slate-500">No catalogue entries match your search.</p>
       ) : (
         Object.keys(groupedDrugs).map((category) => (
-          <div key={category} style={{ marginBottom: "35px" }}>
-            <h3 style={{ color: "#38bdf8", borderBottom: "1px solid #334155", paddingBottom: "10px", textTransform: "capitalize" }}>
+          <div key={category} className="mb-8">
+            <h3 className="text-primary-700 border-b border-slate-200 pb-2 capitalize font-semibold">
               {category}
             </h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "15px", marginTop: "15px" }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
               {groupedDrugs[category].map((drug, index) => (
-                <div
+                <button
                   key={index}
+                  type="button"
                   onClick={() => onSelectDrug(drug.name)}
-                  style={{
-                    backgroundColor: "#0f172a",
-                    padding: "15px",
-                    borderRadius: "10px",
-                    border: "1px solid #334155",
-                    cursor: "pointer",
-                    transition: "border-color 0.2s",
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#3b82f6" }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#334155" }}
+                  className="text-left bg-slate-50 p-4 rounded-xl border border-slate-200 hover:border-primary-400 hover:shadow-md transition"
                 >
-                  <h4 style={{ color: "#e2e8f0", margin: "0 0 8px 0" }}>{drug.name}</h4>
-                  <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>
-                    Starting at <strong style={{ color: "#38bdf8" }}>{drug.minPrice} FCFA</strong>
+                  <h4 className="text-slate-900 font-semibold mb-2">{drug.name}</h4>
+                  <p className="text-slate-600 text-sm">
+                    Starting at <strong className="text-primary-600">{drug.minPrice} FCFA</strong>
                   </p>
-                  <p style={{ color: "#64748b", fontSize: "11px", margin: "5px 0 0 0" }}>
+                  <p className="text-slate-400 text-xs mt-1">
                     Available in {drug.availableAt} pharmacies
                   </p>
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -133,12 +126,13 @@ export default function Catalogue({ onSelectDrug }: Props) {
       )}
 
       {hasMore && (
-        <div style={{ textAlign: "center", marginTop: "30px" }}>
+        <div className="text-center mt-8">
           <button
+            type="button"
             onClick={() => setPage((p) => p + 1)}
-            style={{ padding: "10px 24px", background: "#2563eb", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold" }}
+            className="px-6 py-3 bg-primary-600 text-white rounded-full hover:bg-primary-700 transition font-semibold"
           >
-            {loading ? "Loading more..." : "Load More Categories"}
+            {loading ? "Loading more..." : "Load more"}
           </button>
         </div>
       )}

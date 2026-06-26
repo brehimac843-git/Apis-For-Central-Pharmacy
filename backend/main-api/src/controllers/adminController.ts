@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import axios from "axios";
 import { prisma } from "../db";
 import { AuthenticatedRequest } from "../middleware/authMiddleware";
-import { syncAgentCreate, syncAgentDelete, syncAgentUpdate } from "../services/branchSync";
+import { syncAgentCreate, syncAgentDelete, syncAgentUpdate, getBranchSyncWarning } from "../services/branchSync";
 
 const API_TIMEOUT = 4000;
 
@@ -202,7 +202,7 @@ export const createAgent = async (req: AuthenticatedRequest, res: Response) => {
 
     const pharmacy = await prisma.pharmacy.findUnique({
       where: { id: Number(pharmacyId) },
-      select: { id: true, api_url: true },
+      select: { id: true, api_url: true, name: true },
     });
 
     if (!pharmacy) {
@@ -210,13 +210,14 @@ export const createAgent = async (req: AuthenticatedRequest, res: Response) => {
     }
 
     const active = isActive !== undefined ? Boolean(isActive) : true;
+    let branchSyncWarning: string | undefined;
 
     if (active) {
       try {
         await syncAgentCreate(pharmacy.api_url, String(agentNumber), String(name));
       } catch (err: any) {
         console.error("BRANCH AGENT CREATE SYNC ERROR:", err.message || err);
-        return res.status(502).json({ error: "Failed to sync agent to pharmacy branch." });
+        branchSyncWarning = getBranchSyncWarning(err, pharmacy.name);
       }
     }
 
@@ -237,7 +238,7 @@ export const createAgent = async (req: AuthenticatedRequest, res: Response) => {
       `Created agent ${agent.agentNumber} for pharmacy ${agent.pharmacyId}`
     );
 
-    res.status(201).json(agent);
+    res.status(201).json(branchSyncWarning ? { ...agent, warning: branchSyncWarning } : agent);
   } catch (error) {
     console.error("ADMIN CREATE AGENT ERROR:", error);
     res.status(500).json({ error: "Unable to create agent record." });
@@ -258,6 +259,7 @@ export const updateAgent = async (req: AuthenticatedRequest, res: Response) => {
       pharmacyId !== undefined ? Number(pharmacyId) : existingAgent.pharmacyId;
     const targetActive = isActive !== undefined ? Boolean(isActive) : existingAgent.isActive;
     const targetName = name !== undefined ? String(name) : existingAgent.name;
+    const isReactivating = !existingAgent.isActive && targetActive;
 
     const oldPharmacy = await prisma.pharmacy.findUnique({
       where: { id: existingAgent.pharmacyId },
@@ -265,12 +267,14 @@ export const updateAgent = async (req: AuthenticatedRequest, res: Response) => {
     });
     const newPharmacy = await prisma.pharmacy.findUnique({
       where: { id: targetPharmacyId },
-      select: { api_url: true },
+      select: { api_url: true, name: true },
     });
 
     if (!newPharmacy) {
       return res.status(404).json({ error: "Target pharmacy not found." });
     }
+
+    let branchSyncWarning: string | undefined;
 
     try {
       if (existingAgent.pharmacyId !== targetPharmacyId && oldPharmacy) {
@@ -278,7 +282,7 @@ export const updateAgent = async (req: AuthenticatedRequest, res: Response) => {
       }
 
       if (targetActive) {
-        if (existingAgent.pharmacyId !== targetPharmacyId) {
+        if (existingAgent.pharmacyId !== targetPharmacyId || isReactivating) {
           await syncAgentCreate(newPharmacy.api_url, existingAgent.agentNumber, targetName);
         } else {
           await syncAgentUpdate(
@@ -288,12 +292,12 @@ export const updateAgent = async (req: AuthenticatedRequest, res: Response) => {
             true
           );
         }
-      } else if (newPharmacy) {
+      } else {
         await syncAgentDelete(newPharmacy.api_url, existingAgent.agentNumber);
       }
     } catch (err: any) {
       console.error("BRANCH AGENT UPDATE SYNC ERROR:", err.message || err);
-      return res.status(502).json({ error: "Failed to sync agent update to pharmacy branch." });
+      branchSyncWarning = getBranchSyncWarning(err, newPharmacy.name);
     }
 
     const updatedAgent = await prisma.agentRecord.update({
@@ -313,7 +317,7 @@ export const updateAgent = async (req: AuthenticatedRequest, res: Response) => {
       `Admin updated agent ${updatedAgent.agentNumber}`
     );
 
-    res.json(updatedAgent);
+    res.json(branchSyncWarning ? { ...updatedAgent, warning: branchSyncWarning } : updatedAgent);
   } catch (error) {
     console.error("ADMIN UPDATE AGENT ERROR:", error);
     res.status(500).json({ error: "Unable to update agent record." });
@@ -331,15 +335,17 @@ export const deleteAgent = async (req: AuthenticatedRequest, res: Response) => {
 
     const pharmacy = await prisma.pharmacy.findUnique({
       where: { id: existingAgent.pharmacyId },
-      select: { api_url: true },
+      select: { api_url: true, name: true },
     });
+
+    let branchSyncWarning: string | undefined;
 
     if (pharmacy) {
       try {
         await syncAgentDelete(pharmacy.api_url, existingAgent.agentNumber);
       } catch (err: any) {
         console.error("BRANCH AGENT DELETE SYNC ERROR:", err.message || err);
-        return res.status(502).json({ error: "Failed to sync agent deletion to pharmacy branch." });
+        branchSyncWarning = getBranchSyncWarning(err, pharmacy.name);
       }
     }
 
@@ -353,7 +359,11 @@ export const deleteAgent = async (req: AuthenticatedRequest, res: Response) => {
       `Deleted agent ${existingAgent.agentNumber}`
     );
 
-    res.json({ message: "Agent removed successfully." });
+    res.json(
+      branchSyncWarning
+        ? { message: "Agent removed successfully.", warning: branchSyncWarning }
+        : { message: "Agent removed successfully." }
+    );
   } catch (error) {
     console.error("ADMIN DELETE AGENT ERROR:", error);
     res.status(500).json({ error: "Unable to delete agent record." });

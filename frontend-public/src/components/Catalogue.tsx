@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Search, ShoppingCart, Pill, TrendingUp } from "lucide-react";
 import { API_BASE } from "../config";
 
 type CatalogueDrug = {
@@ -6,10 +7,11 @@ type CatalogueDrug = {
   category: string;
   minPrice: number;
   availableAt: number;
+  description?: string;
 };
 
 type Props = {
-  onSelectDrug: (drugName: string) => void;
+  onSelectDrug: (drug: CatalogueDrug) => void;
 };
 
 export default function Catalogue({ onSelectDrug }: Props) {
@@ -74,74 +76,141 @@ export default function Catalogue({ onSelectDrug }: Props) {
     return acc;
   }, {} as Record<string, CatalogueDrug[]>);
 
+  const getCategoryIcon = (category: string) => {
+    const lower = category.toLowerCase();
+    if (lower.includes("palu")) return "🦟";
+    if (lower.includes("antibio")) return "💊";
+    if (lower.includes("vitamin")) return "🌟";
+    if (lower.includes("pain")) return "💉";
+    return "📦";
+  };
+
   return (
-    <div style={{ padding: "20px", background: "#1e293b", borderRadius: "16px", marginTop: "20px", textAlign: "left" }}>
-      <h2 style={{ color: "white", marginBottom: "20px" }}>Medication Catalogue</h2>
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <input
-          value={filterText}
-          onChange={(e) => setFilterText(e.target.value)}
-          placeholder="Search catalogue..."
-          style={{ flex: 1, minWidth: '180px', padding: '12px', borderRadius: '12px', border: '1px solid #334155', background: '#0f172a', color: 'white' }}
-        />
-        <button
-          onClick={() => setFilterText("")}
-          style={{ padding: '12px 18px', borderRadius: '12px', border: 'none', background: '#2563eb', color: 'white', cursor: 'pointer' }}
-        >
-          Clear
-        </button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+      {/* Header */}
+      <div className="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-success/10 rounded-full mb-4">
+              <Pill className="w-4 h-4 text-success" />
+              <span className="text-sm font-semibold text-success">Central Pharma</span>
+            </div>
+            <h1 className="text-4xl font-bold text-slate-900 mb-2">Medication Catalog</h1>
+            <p className="text-slate-600">Browse our extensive collection of medicines and healthcare products</p>
+          </div>
+
+          {/* Search Bar */}
+          <div className="flex gap-3 items-center">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
+              <input
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                placeholder="Search for medications, categories..."
+                className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition bg-slate-50"
+              />
+            </div>
+            {filterText && (
+              <button
+                onClick={() => setFilterText("")}
+                className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold transition"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {catalogueError ? (
-        <p style={{ color: '#f87171' }}>{catalogueError}</p>
-      ) : filteredDrugs.length === 0 ? (
-        <p style={{ color: '#94a3b8' }}>No catalogue entries match your search.</p>
-      ) : (
-        Object.keys(groupedDrugs).map((category) => (
-          <div key={category} style={{ marginBottom: "35px" }}>
-            <h3 style={{ color: "#38bdf8", borderBottom: "1px solid #334155", paddingBottom: "10px", textTransform: "capitalize" }}>
-              {category}
-            </h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "15px", marginTop: "15px" }}>
-              {groupedDrugs[category].map((drug, index) => (
-                <div
-                  key={index}
-                  onClick={() => onSelectDrug(drug.name)}
-                  style={{
-                    backgroundColor: "#0f172a",
-                    padding: "15px",
-                    borderRadius: "10px",
-                    border: "1px solid #334155",
-                    cursor: "pointer",
-                    transition: "border-color 0.2s",
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#3b82f6" }}
-                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#334155" }}
-                >
-                  <h4 style={{ color: "#e2e8f0", margin: "0 0 8px 0" }}>{drug.name}</h4>
-                  <p style={{ color: "#94a3b8", fontSize: "13px", margin: 0 }}>
-                    Starting at <strong style={{ color: "#38bdf8" }}>{drug.minPrice} FCFA</strong>
-                  </p>
-                  <p style={{ color: "#64748b", fontSize: "11px", margin: "5px 0 0 0" }}>
-                    Available in {drug.availableAt} pharmacies
-                  </p>
-                </div>
-              ))}
-            </div>
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {catalogueError ? (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
+            <p className="text-red-700 font-medium">{catalogueError}</p>
           </div>
-        ))
-      )}
+        ) : filteredDrugs.length === 0 ? (
+          <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+            <Pill className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+            <p className="text-slate-500 text-lg">No medications match your search</p>
+            <p className="text-slate-400 text-sm mt-2">Try adjusting your filters or search terms</p>
+          </div>
+        ) : (
+          <div className="space-y-12">
+            {Object.keys(groupedDrugs).map((category) => (
+              <div key={category}>
+                {/* Category Header */}
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-primary-200">
+                  <span className="text-3xl">{getCategoryIcon(category)}</span>
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900 capitalize">
+                      {category}
+                    </h2>
+                    <p className="text-sm text-slate-500">
+                      {groupedDrugs[category].length} products available
+                    </p>
+                  </div>
+                </div>
 
-      {hasMore && (
-        <div style={{ textAlign: "center", marginTop: "30px" }}>
-          <button
-            onClick={() => setPage((p) => p + 1)}
-            style={{ padding: "10px 24px", background: "#2563eb", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "bold" }}
-          >
-            {loading ? "Loading more..." : "Load More Categories"}
-          </button>
-        </div>
-      )}
+                {/* Drug Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {groupedDrugs[category].map((drug, index) => (
+                    <div
+                      key={index}
+                      onClick={() => onSelectDrug(drug)}
+                      className="group bg-white rounded-2xl border-2 border-slate-100 hover:border-primary-400 p-6 cursor-pointer transition-all hover:shadow-lg hover:-translate-y-1"
+                    >
+                      {/* Drug Header */}
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-bold text-slate-900 group-hover:text-primary-600 transition mb-2">
+                            {drug.name}
+                          </h3>
+                          <span className="inline-block px-3 py-1 bg-slate-100 text-slate-600 text-xs font-semibold rounded-full">
+                            {category}
+                          </span>
+                        </div>
+                        <ShoppingCart className="w-5 h-5 text-slate-300 group-hover:text-primary-500 transition" />
+                      </div>
+
+                      {/* Stats */}
+                      <div className="space-y-3 pt-4 border-t border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-slate-600">Min Price</span>
+                          <span className="text-xl font-bold text-success">
+                            {drug.minPrice.toLocaleString()} FCFA
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                          <TrendingUp className="w-4 h-4 text-primary-500" />
+                          <span>Available at <strong>{drug.availableAt}</strong> pharmacies</span>
+                        </div>
+                      </div>
+
+                      {/* Call to Action */}
+                      <button className="w-full mt-4 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition text-sm">
+                        View Details
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Load More Button */}
+        {hasMore && (
+          <div className="text-center mt-16">
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={loading}
+              className="px-8 py-4 bg-primary-600 hover:bg-primary-700 disabled:bg-slate-400 text-white font-bold rounded-xl transition inline-flex items-center gap-2"
+            >
+              <span>{loading ? "Loading..." : "Load More Medications"}</span>
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

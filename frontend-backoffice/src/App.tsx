@@ -1,13 +1,14 @@
 import { useState, useRef } from "react"
 import axios from "axios"
+import { Search, Shield, ArrowLeft, MapPin, Lock, Crown, Monitor } from "lucide-react"
 import PharmacyMap from "./components/PharmacyMap"
 import Catalogue from "./components/Catalogue"
 import AgentLogin from "./components/AgentLogin"
 import AdminLogin from "./components/AdminLogin"
 import AgentDashboard from "./components/AgentDashboard"
 import AdminDashboard from "./components/AdminDashboard"
+import Logo from "./components/Logo"
 import { API_BASE } from "./config"
-import "./App.css"
 
 type Pharmacy = {
   pharmacy: string
@@ -179,41 +180,27 @@ function App() {
   }
 
   if (viewMode === 'admin-dashboard' && adminToken && activeAdmin) {
-    return (
-      <div className="app-container">
-        <AdminDashboard token={adminToken} admin={activeAdmin} onLogout={handleStaffLogout} />
-      </div>
-    )
+    return <AdminDashboard token={adminToken} admin={activeAdmin} onLogout={handleStaffLogout} />
   }
 
   if (viewMode === 'dashboard' && agentToken && activeAgent) {
     return (
-      <div className="app-container">
-        <AgentDashboard
-          token={agentToken}
-          agent={activeAgent}
-          pharmacyId={agentPharmacyId}
-          nodeApiUrl={agentNodeApiUrl}
-          onLogout={handleStaffLogout}
-        />
-      </div>
+      <AgentDashboard
+        token={agentToken}
+        agent={activeAgent}
+        pharmacyId={agentPharmacyId}
+        nodeApiUrl={agentNodeApiUrl}
+        onLogout={handleStaffLogout}
+      />
     )
   }
 
   if (viewMode === 'login') {
-    return (
-      <div className="app-container">
-        <AgentLogin onLoginSuccess={handleLoginSuccess} onCancel={() => setViewMode('public')} />
-      </div>
-    )
+    return <AgentLogin onLoginSuccess={handleLoginSuccess} onCancel={() => setViewMode('public')} />
   }
 
   if (viewMode === 'login-admin') {
-    return (
-      <div className="app-container">
-        <AdminLogin onLoginSuccess={handleAdminLoginSuccess} onCancel={() => setViewMode('public')} />
-      </div>
-    )
+    return <AdminLogin onLoginSuccess={handleAdminLoginSuccess} onCancel={() => setViewMode('public')} />
   }
 
   if (selectedPharmacy) {
@@ -222,141 +209,233 @@ function App() {
     const finalPrice = selectedPharmacy.price - discount
 
     return (
-      <div className="app-container">
-        <button className="back-button" onClick={() => setSelectedPharmacy(null)}>← Back to results</button>
-        <main className="detail-grid">
-          <section className="info-section">
-            <h1 className="detail-title">{selectedPharmacy.pharmacy}</h1>
-            <div className="detail-card">
-              <p className="detail-city">📍 {selectedPharmacy.city}, Mali</p>
-              <div className="price-section">
-                <div className="price-badge">{selectedPharmacy.price} FCFA</div>
-                {rate > 0 && <div className="amo-tag">✅ AMO Covered: {rate}% (-{discount.toFixed(0)} FCFA)</div>}
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 py-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <button
+            type="button"
+            onClick={() => setSelectedPharmacy(null)}
+            className="inline-flex items-center gap-2 mb-6 text-slate-600 hover:text-slate-900 font-medium transition"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to results
+          </button>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
+              <h1 className="text-3xl font-bold text-slate-900 mb-2">{selectedPharmacy.pharmacy}</h1>
+              <p className="inline-flex items-center gap-2 text-slate-600 mb-6">
+                <MapPin className="w-4 h-4" />
+                {selectedPharmacy.city}, Mali
+              </p>
+
+              <div className="space-y-4">
+                <div className="rounded-2xl bg-primary-50 border border-primary-100 px-4 py-3">
+                  <p className="text-sm text-slate-500">Listed price</p>
+                  <p className="text-3xl font-bold text-primary-700">{selectedPharmacy.price} FCFA</p>
+                </div>
+
+                {rate > 0 && (
+                  <div className="rounded-2xl bg-emerald-50 border border-emerald-100 px-4 py-3 text-emerald-800">
+                    <p className="font-semibold">AMO covered: {rate}%</p>
+                    <p className="text-sm mt-1">You save {discount.toFixed(0)} FCFA</p>
+                  </div>
+                )}
+
+                <div className="rounded-2xl bg-slate-50 border border-slate-200 px-4 py-4 flex items-center justify-between">
+                  <span className="font-semibold text-slate-700">Total to pay</span>
+                  <span className="text-2xl font-bold text-primary-700">
+                    {(rate > 0 ? finalPrice : selectedPharmacy.price).toFixed(0)} FCFA
+                  </span>
+                </div>
               </div>
-              <div className="total-to-pay">
-                <strong>Total to pay:</strong> <span>{(rate > 0 ? finalPrice : selectedPharmacy.price).toFixed(0)} FCFA</span>
-              </div>
-              <a className="directions-button" href={`https://maps.google.com/?q=${selectedPharmacy.latitude},${selectedPharmacy.longitude}`} target="_blank" rel="noreferrer">Get Directions ↗</a>
             </div>
-          </section>
-          <section className="map-section">
-            <h3 style={{ marginBottom: '15px', color: '#1e293b' }}>Location on Map</h3>
-            <PharmacyMap pharmacies={[selectedPharmacy]} />
-          </section>
-        </main>
+
+            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">Location on map</h3>
+              <PharmacyMap pharmacies={[selectedPharmacy]} />
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="app-container">
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
-        <div className="logo-area" style={{ cursor: 'pointer' }} onClick={() => { setShowCatalogue(false); setResults([]) }}>
-          <span style={{ fontSize: '3rem' }}>💊</span>
-          <h1>Pharmacy Back Office</h1>
-        </div>
-
-        <div className="search-wrapper" style={{ position: 'relative', flex: 1, maxWidth: '600px' }}>
-          <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
-            <input
-              className="search-input"
-              placeholder="Search medicine (e.g. Paracetamol)..."
-              value={query}
-              style={{ flex: 1 }}
-              onChange={(e) => {
-                const val = e.target.value
-                setQuery(val)
-                setActiveIndex(-1)
-                setShowSuggestions(true)
-                if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
-                typingTimeoutRef.current = setTimeout(() => { fetchSuggestions(val) }, 250)
-              }}
-              onKeyDown={handleKeyDown}
-              onFocus={() => setShowSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-            />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+      <header className="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-40">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <button
-              onClick={() => { setShowCatalogue(!showCatalogue); setResults([]) }}
-              style={{ padding: '0 20px', borderRadius: '24px', background: showCatalogue ? '#ef4444' : '#2563eb', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+              type="button"
+              onClick={() => { setShowCatalogue(false); setResults([]) }}
+              className="text-left"
             >
-              {showCatalogue ? "Close Catalogue" : "Browse Catalogue"}
+              <Logo subtitle="Back office" />
             </button>
-          </div>
 
-          {showSuggestions && suggestions.length > 0 && (
-            <div className="suggestions-dropdown" style={{ maxWidth: '600px', position: 'absolute', left: 0, right: 0, zIndex: 1000, backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', marginTop: '5px' }}>
-              {suggestions.map((s, i) => (
-                <div
-                  key={i}
-                  className="suggestion-item"
-                  style={{ padding: '10px 15px', cursor: 'pointer', color: '#e2e8f0', backgroundColor: i === activeIndex ? '#1e293b' : 'transparent' }}
-                  onMouseDown={() => { setQuery(s); setShowSuggestions(false); searchDrug(s) }}
-                  onMouseEnter={() => setActiveIndex(i)}
+            <div className="flex gap-2 flex-wrap">
+              {agentToken ? (
+                <button
+                  type="button"
+                  onClick={() => setViewMode('dashboard')}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary-600 text-white hover:bg-primary-700 transition font-semibold"
                 >
-                  🔍 {s}
-                </div>
-              ))}
+                  <Monitor className="w-4 h-4" />
+                  Agent portal
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setViewMode('login')}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-slate-200 text-slate-700 hover:bg-slate-50 transition font-semibold"
+                >
+                  <Lock className="w-4 h-4" />
+                  Agent login
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setViewMode('login-admin')}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 transition font-semibold"
+              >
+                <Crown className="w-4 h-4" />
+                Admin login
+              </button>
             </div>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          {agentToken ? (
-            <button onClick={() => setViewMode('dashboard')} style={{ padding: '10px 20px', borderRadius: '24px', background: '#10b981', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>
-              💻 Agent Portal
-            </button>
-          ) : (
-            <button onClick={() => setViewMode('login')} style={{ padding: '10px 20px', borderRadius: '24px', background: 'transparent', color: '#94a3b8', border: '1px solid #334155', cursor: 'pointer', fontWeight: 'bold' }}>
-              🔒 Agent Login
-            </button>
-          )}
-          <button onClick={() => setViewMode('login-admin')} style={{ padding: '10px 20px', borderRadius: '24px', background: 'transparent', color: '#f8b400', border: '1px solid #334155', cursor: 'pointer', fontWeight: 'bold' }}>
-            👑 Admin Login
-          </button>
+          </div>
         </div>
       </header>
 
-      <main className="results-list">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-8 mb-8">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-slate-900 mb-3">Pharmacy Back Office</h1>
+            <p className="text-slate-600 text-lg">Search stock across the network or open staff portals</p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search medicine (e.g. Paracetamol)..."
+                value={query}
+                className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                onChange={(e) => {
+                  const val = e.target.value
+                  setQuery(val)
+                  setActiveIndex(-1)
+                  setShowSuggestions(true)
+                  if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+                  typingTimeoutRef.current = setTimeout(() => { fetchSuggestions(val) }, 250)
+                }}
+                onKeyDown={handleKeyDown}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              />
+
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-lg z-20 overflow-hidden">
+                  {suggestions.map((s, i) => (
+                    <button
+                      key={s}
+                      type="button"
+                      className={`w-full text-left px-4 py-3 transition ${
+                        i === activeIndex ? "bg-primary-50 text-primary-700" : "hover:bg-slate-50 text-slate-700"
+                      } ${i > 0 ? "border-t border-slate-100" : ""}`}
+                      onMouseDown={() => { setQuery(s); setShowSuggestions(false); searchDrug(s) }}
+                      onMouseEnter={() => setActiveIndex(i)}
+                    >
+                      <Search className="inline w-4 h-4 mr-2 text-slate-400" />
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => { setShowCatalogue(!showCatalogue); setResults([]) }}
+              className={`px-5 py-3 rounded-xl font-semibold whitespace-nowrap transition ${
+                showCatalogue
+                  ? "bg-red-600 text-white hover:bg-red-700"
+                  : "bg-primary-600 text-white hover:bg-primary-700"
+              }`}
+            >
+              {showCatalogue ? "Close catalogue" : "Browse catalogue"}
+            </button>
+          </div>
+        </div>
+
         {showCatalogue ? (
           <Catalogue onSelectDrug={(drugName) => { setQuery(drugName); setShowCatalogue(false); searchDrug(drugName) }} />
         ) : (
           <>
-            <h2>{loading ? "Searching databases..." : results.length > 0 ? "Available Pharmacies" : ""}</h2>
+            {loading && (
+              <p className="text-center text-slate-600 mb-6">Searching databases...</p>
+            )}
+
             {results.length > 0 && (
-              <div className="filter-bar" style={{ display: 'flex', gap: '20px', marginBottom: '20px', alignItems: 'center', backgroundColor: '#1e293b', padding: '10px 15px', borderRadius: '8px', border: '1px solid #334155' }}>
-                <label style={{ color: '#e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <input type="checkbox" checked={filterAmo} onChange={(e) => setFilterAmo(e.target.checked)} /> Only show AMO Covered ✅
-                </label>
-                <select value={sortByPrice} onChange={(e) => setSortByPrice(e.target.value)} style={{ padding: '8px', borderRadius: '5px', background: '#0f172a', color: '#e2e8f0', cursor: 'pointer' }}>
-                  <option value="default">Sort: Default</option>
-                  <option value="price_asc">Price: Low to High</option>
-                  <option value="price_desc">Price: High to Low</option>
-                </select>
+              <div className="mb-6 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                <h2 className="text-xl font-bold text-slate-900 m-0">Available pharmacies</h2>
+                <div className="flex flex-wrap gap-3 items-center">
+                  <label className="inline-flex items-center gap-2 text-slate-700 cursor-pointer text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      checked={filterAmo}
+                      onChange={(e) => setFilterAmo(e.target.checked)}
+                      className="rounded border-slate-300 text-primary-600"
+                    />
+                    AMO only
+                  </label>
+                  <select
+                    value={sortByPrice}
+                    onChange={(e) => setSortByPrice(e.target.value)}
+                    className="px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm"
+                  >
+                    <option value="default">Sort: Default</option>
+                    <option value="price_asc">Price: Low to High</option>
+                    <option value="price_desc">Price: High to Low</option>
+                  </select>
+                </div>
               </div>
             )}
-            <div className="cards-grid">
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {displayedResults.map((r, i) => {
                 const cardRate = extractAmoRate(r)
                 return (
-                  <div key={i} className="pharmacy-card clickable" onClick={() => setSelectedPharmacy(r)}>
-                    <div className="card-header">
-                      <h3>{r.pharmacy}</h3>
-                      <span className="price-tag">{r.price} FCFA</span>
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setSelectedPharmacy(r)}
+                    className="text-left bg-white rounded-2xl p-6 border-2 border-slate-100 hover:border-primary-400 hover:shadow-lg transition"
+                  >
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <h3 className="text-xl font-bold text-slate-900">{r.pharmacy}</h3>
+                        <p className="text-slate-600 mt-1">{r.city}, Mali</p>
+                      </div>
+                      <span className="text-xl font-bold text-primary-600 shrink-0">{r.price} FCFA</span>
                     </div>
-                    <p>📍 {r.city}, Mali</p>
-                    <div className="card-footer">
-                      {cardRate > 0 ? <span className="amo-label">AMO {cardRate}%</span> : ""}
-                    </div>
-                    <span className="view-details-link">View details & map →</span>
-                  </div>
+                    {cardRate > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 px-3 py-1 text-sm font-semibold">
+                        <Shield className="w-3.5 h-3.5" />
+                        AMO {cardRate}%
+                      </span>
+                    )}
+                    <p className="text-sm text-primary-600 font-semibold mt-4">View details →</p>
+                  </button>
                 )
               })}
-              {displayedResults.length === 0 && results.length > 0 && (
-                <p style={{ color: '#94a3b8', gridColumn: '1 / -1', textAlign: 'center', padding: '20px' }}>
-                  No pharmacies match your current filters.
-                </p>
-              )}
             </div>
+
+            {displayedResults.length === 0 && results.length > 0 && (
+              <p className="text-center text-slate-500 py-12 bg-white rounded-2xl border border-slate-200">
+                No pharmacies match your current filters.
+              </p>
+            )}
           </>
         )}
       </main>

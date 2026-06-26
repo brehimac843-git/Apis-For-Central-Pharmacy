@@ -1,5 +1,6 @@
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import { useEffect } from "react";
+import { Check, X, DollarSign } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import "../utils/fixLeafletIcon";
 
@@ -17,7 +18,7 @@ function ChangeView({ center }: { center: [number, number] }) {
   const map = useMap();
   useEffect(() => {
     if (center) {
-      map.setView(center, 13); // 13 is the zoom level
+      map.setView(center, 13);
     }
   }, [center, map]);
   return null;
@@ -26,40 +27,58 @@ function ChangeView({ center }: { center: [number, number] }) {
 export default function PharmacyMap({ pharmacies }: { pharmacies: Pharmacy[] }) {
   if (pharmacies.length === 0) return null;
 
-  // We take the first pharmacy as the center point
   const center: [number, number] = [
     pharmacies[0].latitude,
     pharmacies[0].longitude,
   ];
 
   return (
-    <div style={{ height: "400px", width: "100%", marginTop: "20px", borderRadius: "10px", overflow: "hidden" }}>
-    <MapContainer
-    center={center}
-    zoom={13}
-    style={{ height: "100%", width: "100%" }}
-    >
-    {/* ✅ This makes the map jump to the new location */}
-    <ChangeView center={center} />
-
-    <TileLayer
-    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-  />
-
-  {pharmacies.map((p, index) => (
-    <Marker key={index} position={[p.latitude, p.longitude]}>
-    <Popup>
-    <div style={{ fontFamily: "Arial" }}>
-    <strong style={{ fontSize: "16px" }}>{p.pharmacy}</strong> <br />
-    <span style={{ color: "#2c3e50" }}>💰 {p.price} FCFA</span> <br />
-    <span>📦 Stock: {p.stock}</span> <br />
-    <span>{p.amo_supported ? "✅ AMO Supported" : "❌ No AMO"}</span>
+    <div className="space-y-4">
+      {/* Map Container */}
+      <div className="relative rounded-2xl overflow-hidden shadow-lg border-2 border-slate-100 h-96">
+        <MapContainer
+          center={center}
+          zoom={13}
+          style={{ height: "100%", width: "100%" }}
+        >
+          <ChangeView center={center} />
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          {pharmacies.map((p, index) => (
+            <Marker
+              key={index}
+              position={[p.latitude, p.longitude]}
+            >
+              <Popup>
+                <div className="p-3">
+                  <h3 className="font-bold text-lg text-slate-900 mb-2">{p.pharmacy}</h3>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex items-center gap-2 text-primary-600">
+                      <DollarSign className="w-4 h-4" />
+                      <span>{p.price} FCFA</span>
+                    </div>
+                    <div className="mt-2">
+                      {p.amo_supported ? (
+                        <div className="flex items-center gap-2 text-success">
+                          <Check className="w-4 h-4" />
+                          <span>AMO Supported</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-danger">
+                          <X className="w-4 h-4" />
+                          <span>No AMO</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+      </div>
     </div>
-    </Popup>
-    </Marker>
-  ))}
-  </MapContainer>
-  </div>
   );
 }

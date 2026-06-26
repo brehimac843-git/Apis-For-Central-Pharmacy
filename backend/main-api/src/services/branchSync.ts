@@ -28,3 +28,22 @@ export async function syncAgentDelete(apiUrl: string, agentNumber: string) {
     timeout: API_TIMEOUT,
   });
 }
+
+export function getBranchSyncWarning(err: unknown, pharmacyName?: string): string {
+  const branch = pharmacyName ?? "The pharmacy branch";
+  const axiosErr = err as { code?: string; response?: { status?: number } };
+
+  if (
+    axiosErr.code === "ECONNREFUSED" ||
+    axiosErr.code === "ENOTFOUND" ||
+    axiosErr.code === "ETIMEDOUT"
+  ) {
+    return `${branch} is not reachable. The change was saved here, but the branch may be out of sync until it is back online.`;
+  }
+
+  if (axiosErr.response?.status === 404) {
+    return `${branch} could not apply this change. The change was saved here, but the branch may need to be restarted.`;
+  }
+
+  return `${branch} could not be updated. The change was saved here, but the branch may be out of sync.`;
+}

@@ -35,9 +35,23 @@ router.post("/auth/admin-login", centralAdminLogin);
 router.get("/pharmacies", async (req, res) => {
     try {
         const list = await prisma.pharmacy.findMany({
-            select: { id: true, name: true, city: true, api_url: true }
+            select: {
+                id: true,
+                name: true,
+                city: true,
+                latitude: true,
+                longitude: true,
+                amo_supported: true,
+            },
         });
-        res.json(list);
+        res.json(list.map((pharmacy) => ({
+            id: pharmacy.id,
+            name: pharmacy.name,
+            city: pharmacy.city,
+            latitude: parseFloat(pharmacy.latitude as any),
+            longitude: parseFloat(pharmacy.longitude as any),
+            amo_supported: pharmacy.amo_supported,
+        })));
     } catch (err) {
         res.status(500).json({ error: "Failed to pull registry nodes" });
     }

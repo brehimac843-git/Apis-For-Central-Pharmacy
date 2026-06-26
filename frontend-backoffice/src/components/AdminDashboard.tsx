@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import type { FormEvent, CSSProperties } from "react";
+import type { FormEvent } from "react";
 import axios from "axios";
+import { LayoutDashboard, Store, Users, Activity, Edit2, Trash2, Eye, LogOut, ChevronDown } from "lucide-react";
 import { API_BASE } from "../config";
+import Logo from "./Logo";
 
 type PharmacyNode = {
   id: number;
@@ -109,7 +111,7 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
       setActivityLogs(Array.isArray(activityRes.data) ? activityRes.data : []);
     } catch (err: any) {
       console.error(err);
-      setAdminMessage(err.response?.data?.error || "Failed to load admin data. Check that the API is running on port 3000.");
+      setAdminMessage(err.response?.data?.error || "Failed to load admin data.");
     }
   };
 
@@ -156,20 +158,27 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
 
       if (editingPharmacyId) {
         await axios.put(`${API_BASE}/api/admin/pharmacies/${editingPharmacyId}`, payload, authHeader);
-        setAdminMessage("Pharmacy updated successfully.");
+        setAdminMessage("✅ Pharmacy updated successfully.");
       } else {
         await axios.post(`${API_BASE}/api/admin/pharmacies`, payload, authHeader);
-        setAdminMessage("Pharmacy added successfully.");
+        setAdminMessage("✅ Pharmacy added successfully.");
       }
 
       clearPharmacyForm();
       await refreshData();
     } catch (err: any) {
       console.error(err);
-      setAdminMessage(err.response?.data?.error || "Failed to save pharmacy.");
+      setAdminMessage("❌ " + (err.response?.data?.error || "Failed to save pharmacy."));
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const formatAgentResultMessage = (successMessage: string, data?: { warning?: string }) => {
+    if (data?.warning) {
+      return `⚠️ ${successMessage} ${data.warning}`;
+    }
+    return `✅ ${successMessage}`;
   };
 
   const handleAgentSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -184,24 +193,24 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
       };
 
       if (!payload.agentNumber || !payload.name || !payload.pharmacyId) {
-        setAdminMessage("Agent number, name and pharmacy assignment are required.");
+        setAdminMessage("❌ Agent number, name and pharmacy assignment are required.");
         setActionLoading(false);
         return;
       }
 
       if (editingAgentId) {
-        await axios.put(`${API_BASE}/api/admin/agents/${editingAgentId}`, payload, authHeader);
-        setAdminMessage("Agent record updated successfully.");
+        const response = await axios.put(`${API_BASE}/api/admin/agents/${editingAgentId}`, payload, authHeader);
+        setAdminMessage(formatAgentResultMessage("Agent record updated successfully.", response.data));
       } else {
-        await axios.post(`${API_BASE}/api/admin/agents`, payload, authHeader);
-        setAdminMessage("Agent created successfully.");
+        const response = await axios.post(`${API_BASE}/api/admin/agents`, payload, authHeader);
+        setAdminMessage(formatAgentResultMessage("Agent created successfully.", response.data));
       }
 
       clearAgentForm();
       await refreshData();
     } catch (err: any) {
       console.error(err);
-      setAdminMessage(err.response?.data?.error || "Failed to save agent.");
+      setAdminMessage("❌ " + (err.response?.data?.error || "Failed to save agent."));
     } finally {
       setActionLoading(false);
     }
@@ -232,11 +241,11 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
 
     try {
       await axios.delete(`${API_BASE}/api/admin/pharmacies/${id}`, authHeader);
-      setAdminMessage("Pharmacy removed successfully.");
+      setAdminMessage("✅ Pharmacy removed successfully.");
       await refreshData();
     } catch (err: any) {
       console.error(err);
-      setAdminMessage(err.response?.data?.error || "Failed to delete pharmacy.");
+      setAdminMessage("❌ " + (err.response?.data?.error || "Failed to delete pharmacy."));
     } finally {
       setActionLoading(false);
     }
@@ -261,12 +270,12 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
     setAdminMessage("");
 
     try {
-      await axios.delete(`${API_BASE}/api/admin/agents/${id}`, authHeader);
-      setAdminMessage("Agent removed successfully.");
+      const response = await axios.delete(`${API_BASE}/api/admin/agents/${id}`, authHeader);
+      setAdminMessage(formatAgentResultMessage("Agent removed successfully.", response.data));
       await refreshData();
     } catch (err: any) {
       console.error(err);
-      setAdminMessage(err.response?.data?.error || "Failed to delete agent.");
+      setAdminMessage("❌ " + (err.response?.data?.error || "Failed to delete agent."));
     } finally {
       setActionLoading(false);
     }
@@ -277,144 +286,167 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
     setAdminMessage("");
 
     try {
-      await axios.put(`${API_BASE}/api/admin/agents/${agent.id}`, {
+      const response = await axios.put(`${API_BASE}/api/admin/agents/${agent.id}`, {
         isActive: !agent.isActive,
       }, authHeader);
-      setAdminMessage(`Agent ${agent.agentNumber} is now ${agent.isActive ? "inactive" : "active"}.`);
+      setAdminMessage(
+        formatAgentResultMessage(
+          `Agent ${agent.agentNumber} is now ${agent.isActive ? "inactive" : "active"}.`,
+          response.data
+        )
+      );
       await refreshData();
     } catch (err: any) {
       console.error(err);
-      setAdminMessage(err.response?.data?.error || "Failed to update agent status.");
+      setAdminMessage("❌ " + (err.response?.data?.error || "Failed to update agent status."));
     } finally {
       setActionLoading(false);
     }
   };
 
   return (
-    <div style={{ padding: "24px", color: "white" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "20px", marginBottom: "24px" }}>
-        <div>
-          <h1 style={{ margin: 0 }}>Central Admin Console</h1>
-          <p style={{ margin: 0, color: "#cbd5e1" }}>Logged in as {admin?.email || "Administrator"}</p>
-        </div>
-
-        <button onClick={onLogout} style={{ padding: "10px 18px", borderRadius: "12px", border: "none", background: "#ef4444", color: "white", cursor: "pointer" }}>
-          Logout
-        </button>
-      </div>
-
-      <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "30px" }}>
-        {(["overview", "pharmacies", "agents", "activity"] as const).map((mode) => (
-          <button
-            key={mode}
-            onClick={() => setView(mode)}
-            style={{
-              padding: "12px 18px",
-              borderRadius: "12px",
-              border: view === mode ? "1px solid #60a5fa" : "1px solid #334155",
-              background: view === mode ? "#1e40af" : "#0f172a",
-              color: "white",
-              cursor: "pointer",
-            }}
-          >
-            {mode === "overview" ? "Overview" : mode === "pharmacies" ? "Pharmacies" : mode === "agents" ? "Agents" : "Activity"}
-          </button>
-        ))}
-      </div>
-
-      {adminMessage && (
-        <div style={{ marginBottom: "20px", padding: "16px", borderRadius: "14px", background: "#111827", color: "#cbd5e1", border: "1px solid #334155" }}>
-          {adminMessage}
-        </div>
-      )}
-
-      {view === "overview" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "18px" }}>
-          <div style={{ padding: "22px", background: "#111827", borderRadius: "18px" }}>
-            <h2 style={{ marginTop: 0 }}>Pharmacies</h2>
-            <p style={{ fontSize: "3rem", margin: 0 }}>{pharmacies.length}</p>
-          </div>
-          <div style={{ padding: "22px", background: "#111827", borderRadius: "18px" }}>
-            <h2 style={{ marginTop: 0 }}>Agents</h2>
-            <p style={{ fontSize: "3rem", margin: 0 }}>{agents.length}</p>
-          </div>
-          <div style={{ padding: "22px", background: "#111827", borderRadius: "18px" }}>
-            <h2 style={{ marginTop: 0 }}>Recent Actions</h2>
-            <p style={{ fontSize: "3rem", margin: 0 }}>{activityLogs.length}</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8">
+          <div className="flex justify-between items-center gap-6 flex-wrap">
+            <div>
+              <Logo subtitle="Admin console" />
+              <p className="text-slate-600 m-0 mt-3">Logged in as {admin?.email || "Administrator"}</p>
+            </div>
+            <button
+              onClick={onLogout}
+              className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-full transition flex items-center gap-2"
+            >
+              <LogOut className="w-5 h-5" />
+              Logout
+            </button>
           </div>
         </div>
-      )}
 
-      {view === "pharmacies" && (
-        <div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", marginBottom: "24px" }}>
-            <div style={{ padding: "20px", background: "#111827", borderRadius: "18px" }}>
-              <h2>{editingPharmacyId ? "Edit Pharmacy" : "Add New Pharmacy"}</h2>
-              <form onSubmit={handlePharmacySubmit} style={{ display: "grid", gap: "12px", marginTop: "16px" }}>
+        {/* Navigation Tabs */}
+        <div className="flex gap-3 mb-8 flex-wrap">
+          {(["overview", "pharmacies", "agents", "activity"] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setView(mode)}
+              className={`px-6 py-3 rounded-full font-semibold transition flex items-center gap-2 ${
+                view === mode
+                  ? "bg-primary-600 text-white shadow-sm"
+                  : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              {mode === "overview" && <LayoutDashboard className="w-5 h-5" />}
+              {mode === "pharmacies" && <Store className="w-5 h-5" />}
+              {mode === "agents" && <Users className="w-5 h-5" />}
+              {mode === "activity" && <Activity className="w-5 h-5" />}
+              <span className="hidden sm:inline">{mode.charAt(0).toUpperCase() + mode.slice(1)}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Status Message */}
+        {adminMessage && (
+          <div className={`mb-6 p-4 rounded-lg border-l-4 ${
+            adminMessage.startsWith("✅")
+              ? "bg-green-50 border-green-500 text-green-700"
+              : adminMessage.startsWith("⚠️")
+              ? "bg-amber-50 border-amber-500 text-amber-800"
+              : "bg-red-50 border-red-500 text-red-700"
+          }`}>
+            {adminMessage}
+          </div>
+        )}
+
+        {/* Overview */}
+        {view === "overview" && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatCard icon={<Store className="w-8 h-8" />} label="Pharmacies" value={pharmacies.length} color="bg-blue-600" />
+            <StatCard icon={<Users className="w-8 h-8" />} label="Agents" value={agents.length} color="bg-purple-600" />
+            <StatCard icon={<Activity className="w-8 h-8" />} label="Recent Actions" value={activityLogs.length} color="bg-green-600" />
+            <StatCard icon={<ChevronDown className="w-8 h-8" />} label="Active Agents" value={agents.filter(a => a.isActive).length} color="bg-orange-600" />
+          </div>
+        )}
+
+        {/* Pharmacies View */}
+        {view === "pharmacies" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Form */}
+            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">{editingPharmacyId ? "Edit Pharmacy" : "Add New Pharmacy"}</h2>
+              <form onSubmit={handlePharmacySubmit} className="space-y-4">
                 <input
                   value={pharmacyForm.name}
                   onChange={(e) => setPharmacyForm({ ...pharmacyForm, name: e.target.value })}
                   placeholder="Name"
-                  style={inputStyle}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <input
                   value={pharmacyForm.city}
                   onChange={(e) => setPharmacyForm({ ...pharmacyForm, city: e.target.value })}
                   placeholder="City"
-                  style={inputStyle}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <input
                   value={pharmacyForm.address}
                   onChange={(e) => setPharmacyForm({ ...pharmacyForm, address: e.target.value })}
                   placeholder="Address"
-                  style={inputStyle}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <input
                   value={pharmacyForm.phone}
                   onChange={(e) => setPharmacyForm({ ...pharmacyForm, phone: e.target.value })}
                   placeholder="Phone"
-                  style={inputStyle}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <input
                   value={pharmacyForm.email}
                   onChange={(e) => setPharmacyForm({ ...pharmacyForm, email: e.target.value })}
                   placeholder="Email"
-                  style={inputStyle}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <input
                   value={pharmacyForm.api_url}
                   onChange={(e) => setPharmacyForm({ ...pharmacyForm, api_url: e.target.value })}
                   placeholder="API URL"
-                  style={inputStyle}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div className="grid grid-cols-2 gap-3">
                   <input
                     value={pharmacyForm.latitude}
                     onChange={(e) => setPharmacyForm({ ...pharmacyForm, latitude: e.target.value })}
                     placeholder="Latitude"
-                    style={inputStyle}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                   <input
                     value={pharmacyForm.longitude}
                     onChange={(e) => setPharmacyForm({ ...pharmacyForm, longitude: e.target.value })}
                     placeholder="Longitude"
-                    style={inputStyle}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
-                <label style={{ display: "flex", gap: "10px", alignItems: "center", color: "#cbd5e1" }}>
+                <label className="flex gap-3 items-center text-slate-700 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={pharmacyForm.amo_supported}
                     onChange={(e) => setPharmacyForm({ ...pharmacyForm, amo_supported: e.target.checked })}
+                    className="w-4 h-4"
                   />
-                  AMO supported
+                  AMO Supported
                 </label>
-                <div style={{ display: "flex", gap: "12px", marginTop: "12px" }}>
-                  <button type="submit" disabled={actionLoading} style={buttonPrimaryStyle}>
+                <div className="flex gap-3 pt-4">
+                  <button 
+                    type="submit" 
+                    disabled={actionLoading} 
+                    className="flex-1 px-4 py-3 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-semibold rounded-full transition"
+                  >
                     {editingPharmacyId ? "Save Changes" : "Create Pharmacy"}
                   </button>
                   {editingPharmacyId && (
-                    <button type="button" onClick={clearPharmacyForm} style={buttonSecondaryStyle}>
+                    <button
+                      type="button"
+                      onClick={clearPharmacyForm}
+                      className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-full transition"
+                    >
                       Cancel
                     </button>
                   )}
@@ -422,26 +454,190 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
               </form>
             </div>
 
-            <div style={{ padding: "20px", background: "#111827", borderRadius: "18px" }}>
-              <h2>Pharmacy Registry</h2>
-              <div style={{ display: "grid", gap: "12px", marginTop: "16px" }}>
+            {/* Pharmacies List */}
+            <div className="lg:col-span-2 space-y-4">
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">Pharmacy Registry ({pharmacies.length})</h2>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
                 {pharmacies.map((pharmacy) => (
-                  <div key={pharmacy.id} style={{ padding: "16px", background: "#0f172a", borderRadius: "14px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
-                      <div>
-                        <h3 style={{ margin: 0 }}>{pharmacy.name}</h3>
-                        <p style={{ margin: "6px 0 0", color: "#cbd5e1" }}>{pharmacy.city} • {pharmacy.address}</p>
-                        <p style={{ margin: "6px 0 0", color: "#cbd5e1" }}>Agents: {pharmacy.agentCount} ({pharmacy.activeAgentCount} active)</p>
+                  <div key={pharmacy.id} className="bg-white p-4 rounded-xl border border-slate-200 hover:border-primary-300 transition shadow-sm">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <h3 className="font-bold text-slate-900 text-lg">{pharmacy.name}</h3>
+                        <p className="text-slate-500 text-sm mt-1">{pharmacy.city} • {pharmacy.address}</p>
+                        <p className="text-slate-500 text-sm mt-2">Agents: {pharmacy.agentCount} ({pharmacy.activeAgentCount} active)</p>
                       </div>
-                      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                        <button onClick={() => handlePharmacyEdit(pharmacy)} style={smallButtonStyle}>
-                          Edit
+                      <div className="flex gap-2 flex-wrap justify-end">
+                        <button 
+                          onClick={() => handlePharmacyEdit(pharmacy)} 
+                          className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handlePharmacyDelete(pharmacy.id)} style={smallDangerStyle}>
-                          Delete
+                        <button 
+                          onClick={() => loadStockForPharmacy(pharmacy.id)} 
+                          className="p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition"
+                          title="View Stock"
+                        >
+                          <Eye className="w-4 h-4" />
                         </button>
-                        <button onClick={() => loadStockForPharmacy(pharmacy.id)} style={smallButtonStyle}>
-                          Stock
+                        <button 
+                          onClick={() => handlePharmacyDelete(pharmacy.id)} 
+                          className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Stock Table */}
+              {stockError && (
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded text-red-700">
+                  {stockError}
+                </div>
+              )}
+              {selectedPharmacyStock.length > 0 && (
+                <div className="mt-6 bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+                  <div className="p-4 border-b border-slate-100">
+                    <h3 className="font-bold text-slate-900 text-lg">Live Stock</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-left text-slate-500 border-b border-slate-100 text-sm bg-slate-50">
+                          <th className="px-4 py-2">Name</th>
+                          <th className="px-4 py-2">Quantity</th>
+                          <th className="px-4 py-2">Price</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedPharmacyStock.map((item: any) => (
+                          <tr key={item.id} className="border-b border-slate-100 text-slate-700 text-sm">
+                            <td className="px-4 py-3">{item.name}</td>
+                            <td className="px-4 py-3">{item.stock_quantity}</td>
+                            <td className="px-4 py-3 text-primary-700 font-semibold">{item.selling_price} FCFA</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Agents View */}
+        {view === "agents" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Form */}
+            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">{editingAgentId ? "Edit Agent" : "Add New Agent"}</h2>
+              <form onSubmit={handleAgentSubmit} className="space-y-4">
+                <input
+                  value={agentForm.agentNumber}
+                  onChange={(e) => setAgentForm({ ...agentForm, agentNumber: e.target.value })}
+                  placeholder="Agent Number"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <input
+                  value={agentForm.name}
+                  onChange={(e) => setAgentForm({ ...agentForm, name: e.target.value })}
+                  placeholder="Agent Name"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <select
+                  value={agentForm.pharmacyId}
+                  onChange={(e) => setAgentForm({ ...agentForm, pharmacyId: e.target.value })}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">Select Pharmacy</option>
+                  {pharmacies.map((pharmacy) => (
+                    <option key={pharmacy.id} value={pharmacy.id}>{pharmacy.name}</option>
+                  ))}
+                </select>
+                <label className="flex gap-3 items-center text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={agentForm.isActive}
+                    onChange={(e) => setAgentForm({ ...agentForm, isActive: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  Active Agent
+                </label>
+                <div className="flex gap-3 pt-4">
+                  <button 
+                    type="submit" 
+                    disabled={actionLoading} 
+                    className="flex-1 px-4 py-3 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-semibold rounded-full transition"
+                  >
+                    {editingAgentId ? "Save Agent" : "Create Agent"}
+                  </button>
+                  {editingAgentId && (
+                    <button
+                      type="button"
+                      onClick={clearAgentForm}
+                      className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-full transition"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            {/* Agents List */}
+            <div className="lg:col-span-2">
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">Agent Roster ({agents.length})</h2>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {agents.map((agent) => (
+                  <div
+                    key={agent.id}
+                    className={`p-4 rounded-xl border transition shadow-sm ${
+                      agent.isActive
+                        ? "bg-white border-slate-200 hover:border-primary-300"
+                        : "bg-slate-50 border-slate-200 opacity-80"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-slate-900 text-lg">{agent.name}</h3>
+                          <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                            agent.isActive ? "bg-green-100 text-green-700" : "bg-slate-200 text-slate-600"
+                          }`}>
+                            {agent.isActive ? "ACTIVE" : "INACTIVE"}
+                          </span>
+                        </div>
+                        <p className="text-slate-500 text-sm mt-1">#{agent.agentNumber} • {agent.pharmacyName}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => handleAgentToggleActive(agent)} 
+                          className={`p-2 rounded-lg transition ${
+                            agent.isActive
+                              ? "bg-orange-600 hover:bg-orange-700 text-white"
+                              : "bg-green-600 hover:bg-green-700 text-white"
+                          }`}
+                          title={agent.isActive ? "Deactivate" : "Activate"}
+                        >
+                          {agent.isActive ? "OFF" : "ON"}
+                        </button>
+                        <button 
+                          onClick={() => handleAgentEdit(agent)} 
+                          className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button 
+                          onClick={() => handleAgentDelete(agent.id)} 
+                          className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition"
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -450,178 +646,45 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
               </div>
             </div>
           </div>
+        )}
 
-          {stockError && (
-            <div style={{ marginTop: "20px", padding: "16px", borderRadius: "12px", background: "#7f1d1d", color: "white" }}>
-              {stockError}
-            </div>
-          )}
-
-          {selectedPharmacyStock.length > 0 && (
-            <div style={{ marginTop: "24px" }}>
-              <h3>Live Stock</h3>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ textAlign: "left", color: "#cbd5e1", borderBottom: "1px solid #334155" }}>
-                    <th style={{ padding: "12px" }}>Name</th>
-                    <th style={{ padding: "12px" }}>Quantity</th>
-                    <th style={{ padding: "12px" }}>Price</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {selectedPharmacyStock.map((item: any) => (
-                    <tr key={item.id} style={{ borderBottom: "1px solid #334155" }}>
-                      <td style={{ padding: "12px" }}>{item.name}</td>
-                      <td style={{ padding: "12px" }}>{item.stock_quantity}</td>
-                      <td style={{ padding: "12px" }}>{item.selling_price} FCFA</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {view === "agents" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
-          <div style={{ padding: "20px", background: "#111827", borderRadius: "18px" }}>
-            <h2>{editingAgentId ? "Edit Agent" : "Add New Agent"}</h2>
-            <form onSubmit={handleAgentSubmit} style={{ display: "grid", gap: "12px", marginTop: "16px" }}>
-              <input
-                value={agentForm.agentNumber}
-                onChange={(e) => setAgentForm({ ...agentForm, agentNumber: e.target.value })}
-                placeholder="Agent Number"
-                style={inputStyle}
-              />
-              <input
-                value={agentForm.name}
-                onChange={(e) => setAgentForm({ ...agentForm, name: e.target.value })}
-                placeholder="Agent Name"
-                style={inputStyle}
-              />
-              <select
-                value={agentForm.pharmacyId}
-                onChange={(e) => setAgentForm({ ...agentForm, pharmacyId: e.target.value })}
-                style={inputStyle}
-              >
-                <option value="">Select Pharmacy</option>
-                {pharmacies.map((pharmacy) => (
-                  <option key={pharmacy.id} value={pharmacy.id}>{pharmacy.name}</option>
-                ))}
-              </select>
-              <label style={{ display: "flex", gap: "10px", alignItems: "center", color: "#cbd5e1" }}>
-                <input
-                  type="checkbox"
-                  checked={agentForm.isActive}
-                  onChange={(e) => setAgentForm({ ...agentForm, isActive: e.target.checked })}
-                />
-                Active agent
-              </label>
-              <div style={{ display: "flex", gap: "12px", marginTop: "12px" }}>
-                <button type="submit" disabled={actionLoading} style={buttonPrimaryStyle}>
-                  {editingAgentId ? "Save Agent" : "Create Agent"}
-                </button>
-                {editingAgentId && (
-                  <button type="button" onClick={clearAgentForm} style={buttonSecondaryStyle}>
-                    Cancel
-                  </button>
-                )}
-              </div>
-            </form>
-          </div>
-
-          <div style={{ padding: "20px", background: "#111827", borderRadius: "18px" }}>
-            <h2>Agent Roster</h2>
-            <div style={{ display: "grid", gap: "12px", marginTop: "16px" }}>
-              {agents.map((agent) => (
-                <div key={agent.id} style={{ padding: "16px", background: "#0f172a", borderRadius: "14px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px" }}>
-                    <div>
-                      <h3 style={{ margin: 0 }}>{agent.name}</h3>
-                      <p style={{ margin: "6px 0 0", color: "#cbd5e1" }}><strong>{agent.agentNumber}</strong> • {agent.pharmacyName}</p>
+        {/* Activity View */}
+        {view === "activity" && (
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-6">Recent Agent Activity</h2>
+            <div className="space-y-4">
+              {activityLogs.map((entry) => (
+                <div key={entry.id} className="bg-white p-4 rounded-xl border border-slate-200 hover:border-primary-300 transition shadow-sm">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <p className="text-slate-900 font-semibold">{entry.action} <span className="text-primary-600">• {entry.pharmacyName}</span></p>
+                      <p className="text-slate-500 text-sm mt-2">{entry.agentName} (#{entry.agentNumber})</p>
+                      {entry.details && <p className="text-slate-600 text-sm mt-2 italic">{entry.details}</p>}
                     </div>
-                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
-                      <button onClick={() => handleAgentToggleActive(agent)} style={smallButtonStyle}>
-                        {agent.isActive ? "Deactivate" : "Activate"}
-                      </button>
-                      <button onClick={() => handleAgentEdit(agent)} style={smallButtonStyle}>
-                        Edit
-                      </button>
-                      <button onClick={() => handleAgentDelete(agent.id)} style={smallDangerStyle}>
-                        Delete
-                      </button>
-                    </div>
+                    <p className="text-slate-500 text-xs whitespace-nowrap">
+                      {new Date(entry.createdAt).toLocaleString()}
+                    </p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      )}
-
-      {view === "activity" && (
-        <div>
-          <h2>Recent Agent Activity</h2>
-          <div style={{ marginTop: "18px", display: "grid", gap: "16px" }}>
-            {activityLogs.map((entry) => (
-              <div key={entry.id} style={{ padding: "18px", background: "#111827", borderRadius: "18px" }}>
-                <p style={{ margin: 0, color: "#cbd5e1" }}><strong>{entry.action}</strong> • {entry.pharmacyName}</p>
-                <p style={{ margin: "8px 0 0", color: "#94a3b8" }}>{entry.agentName} ({entry.agentNumber})</p>
-                {entry.details && <p style={{ margin: "10px 0 0", color: "#cbd5b2" }}>{entry.details}</p>}
-                <p style={{ margin: "10px 0 0", color: "#64748b", fontSize: "0.9rem" }}>{new Date(entry.createdAt).toLocaleString()}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
 
-const inputStyle: CSSProperties = {
-  width: "100%",
-  padding: "12px",
-  borderRadius: "10px",
-  border: "1px solid #334155",
-  background: "#0f172a",
-  color: "white",
-};
-
-const buttonPrimaryStyle: CSSProperties = {
-  padding: "12px 18px",
-  borderRadius: "12px",
-  border: "none",
-  background: "#2563eb",
-  color: "white",
-  cursor: "pointer",
-  flex: 1,
-};
-
-const buttonSecondaryStyle: CSSProperties = {
-  padding: "12px 18px",
-  borderRadius: "12px",
-  border: "1px solid #334155",
-  background: "transparent",
-  color: "#cbd5e1",
-  cursor: "pointer",
-  flex: 1,
-};
-
-const smallButtonStyle: CSSProperties = {
-  padding: "8px 12px",
-  borderRadius: "10px",
-  border: "none",
-  background: "#2563eb",
-  color: "white",
-  cursor: "pointer",
-};
-
-const smallDangerStyle: CSSProperties = {
-  padding: "8px 12px",
-  borderRadius: "10px",
-  border: "none",
-  background: "#dc2626",
-  color: "white",
-  cursor: "pointer",
-};
+function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) {
+  return (
+    <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-slate-500 text-sm font-medium">{label}</p>
+          <p className="text-4xl font-bold text-slate-900 mt-2">{value}</p>
+        </div>
+        <div className={`${color} p-3 rounded-xl text-white`}>{icon}</div>
+      </div>
+    </div>
+  );
+}

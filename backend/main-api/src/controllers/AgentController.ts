@@ -59,6 +59,23 @@ export const agentLogin = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Selected pharmacy not found in aggregator system" });
     }
 
+    const centralAgent = await prisma.agentRecord.findUnique({
+      where: { agentNumber: String(agentNumber) },
+    });
+
+    if (!centralAgent || centralAgent.pharmacyId !== pharmacy.id) {
+      return res.status(401).json({
+        error:
+          "This agent number is not assigned to this pharmacy. Check your branch selection or contact your administrator.",
+      });
+    }
+
+    if (!centralAgent.isActive) {
+      return res.status(401).json({
+        error: "This agent account is inactive. Please ask your administrator to reactivate it.",
+      });
+    }
+
     let isVerified = false;
     let verifiedAgentName = "Pharmacy Agent";
 
@@ -82,13 +99,36 @@ export const agentLogin = async (req: Request, res: Response) => {
         }
       } catch (networkError: any) {
         console.error(`Authentication gateway failure connecting to ${pharmacy.name}:`, networkError.message);
-        
-        if (networkError.response?.status === 404) {
-          return res.status(502).json({ 
-            error: `Handshake failed: The branch node at ${pharmacy.name} is online but missing the /api/internal/verify-agent route.` 
+
+        const status = networkError.response?.status;
+        const data = networkError.response?.data;
+
+        if (status === 404 && data?.verified === false) {
+          return res.status(401).json({
+            error:
+              "This agent number is not recognized at this pharmacy branch. Contact your administrator.",
           });
         }
-        return res.status(502).json({ error: "Could not establish secure link with pharmacy database" });
+
+        if (
+          networkError.code === "ECONNREFUSED" ||
+          networkError.code === "ENOTFOUND" ||
+          networkError.code === "ETIMEDOUT"
+        ) {
+          return res.status(502).json({
+            error: `${pharmacy.name} is offline or unreachable. Please try again later.`,
+          });
+        }
+
+        if (status === 404) {
+          return res.status(502).json({
+            error: `${pharmacy.name} is temporarily unavailable. Please try again later or contact support.`,
+          });
+        }
+
+        return res.status(502).json({
+          error: `Unable to connect to ${pharmacy.name}. Please try again later.`,
+        });
       }
     }
 
@@ -120,7 +160,9 @@ export const agentLogin = async (req: Request, res: Response) => {
       });
     }
 
-    return res.status(401).json({ error: "Invalid Agent Number for this pharmacy branch" });
+    return res.status(401).json({
+      error: "This agent number could not be verified at this pharmacy. Contact your administrator.",
+    });
 
   } catch (error) {
     console.error("GLOBAL AGENT AUTH ERROR:", error);

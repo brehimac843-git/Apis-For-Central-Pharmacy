@@ -3,6 +3,8 @@
   width: 100%;
   margin: 0 auto;
   padding: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #0f172a;
 }
 
 .logo-area {
@@ -26,7 +28,7 @@
   padding: 2rem;
   border-radius: 24px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.03);
 }
 
 .amo-tag {
@@ -40,7 +42,7 @@
 }
 
 .total-to-pay {
-  background: #eff6ff;
+  background: #f0fdf4; /* Changé de bleu clair à vert médical doux */
   padding: 20px;
   border-radius: 12px;
   margin-top: 20px;
@@ -52,23 +54,26 @@
 .total-to-pay span {
   font-size: 1.8rem;
   font-weight: 800;
-  color: #2563eb;
+  color: #065f46; /* Changé de bleu à émeraude foncé */
 }
 
 .directions-button {
   display: block;
   text-align: center;
-  background: #2563eb;
+  background: #10b981; /* Changé en vert menthe */
   color: white;
   text-decoration: none;
   padding: 16px;
   border-radius: 12px;
   font-weight: 700;
   margin-top: 25px;
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.2s;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
 }
 
-.directions-button:hover { background: #1d4ed8; }
+.directions-button:hover { 
+  background: #059669; /* Vert plus soutenu au survol */
+}
 
 /* List View Upgrades */
 .cards-grid {
@@ -83,28 +88,30 @@
   background: white;
   border: 1px solid #e2e8f0;
   padding: 1.5rem;
-  border-radius: 16px;
-  transition: transform 0.2s, border-color 0.2s;
+  border-radius: 18px;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.01);
 }
 
 .pharmacy-card:hover {
-  transform: translateY(-5px);
-  border-color: #3b82f6;
+  transform: translateY(-4px);
+  border-color: #10b981; /* Changé de bleu à vert pour l'effet focus au survol */
+  box-shadow: 0 12px 20px -3px rgba(16, 185, 129, 0.06);
 }
 
 .amo-label {
   font-size: 0.75rem;
   background: #dcfce7;
   color: #166534;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
   font-weight: bold;
 }
 
 .view-details-link {
   display: block;
   margin-top: 15px;
-  color: #3b82f6;
+  color: #10b981; /* Changé de bleu à vert */
   font-size: 0.9rem;
   font-weight: 600;
 }

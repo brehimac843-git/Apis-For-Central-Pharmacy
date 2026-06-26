@@ -1,0 +1,1282 @@
+backend/main-api/src/controllers/
+adminController:import { Request, Response } from "express";
+import axios from "axios";
+import { prisma } from "../db";
+import { AuthenticatedRequest } from "../middleware/authMiddleware";
+import { syncAgentCreate, syncAgentDelete, syncAgentUpdate } from "../services/branchSync";
+
+const API_TIMEOUT = 4000;
+
+const createActivityLog = async (
+  agentNumber: string,
+  agentName: string,
+  pharmacyId: number,
+  action: string,
+  details?: string
+) => {
+  await prisma.agentActivityLog.create({
+    data: {
+      agentNumber,
+      agentName,
+      pharmacyId,
+      action,
+      details: details ?? null,
+    },
+  });
+};
+
+export const listPharmacies = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const pharmacies = await prisma.pharmacy.findMany({
+      include: {
+        agents: {
+          select: {
+            id: true,
+            agentNumber: true,
+            name: true,
+            isActive: true,
+          },
+        },
+      },
+    });
+
+    const payload = pharmacies.map((pharmacy) => ({
+      ...pharmacy,
+      agentCount: pharmacy.agents.length,
+      activeAgentCount: pharmacy.agents.filter((agent) => agent.isActive).length,
+    }));
+
+    res.json(payload);
+  } catch (error) {
+    console.error("ADMIN PHARMACY LIST ERROR:", error);
+    res.status(500).json({ error: "Unable to fetch pharmacy registry." });
+  }
+};
+
+export const createPharmacy = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const {
+      name,
+      city,
+      address,
+      phone,
+      email,
+      api_url,
+      latitude,
+      longitude,
+      amo_supported,
+    } = req.body;
+
+    if (!name || !city || !address || !phone || !email || !api_url || latitude === undefined || longitude === undefined) {
+      return res.status(400).json({ error: "All pharmacy fields are required except AMO support." });
+    }
+
+    const newPharmacy = await prisma.pharmacy.create({
+      data: {
+        name: String(name),
+        city: String(city),
+        address: String(address),
+        phone: String(phone),
+        email: String(email),
+        api_url: String(api_url),
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+        amo_supported: Boolean(amo_supported),
+      },
+    });
+
+    await createActivityLog(
+      req.user?.adminId ?? "ADMIN",
+      req.user?.email ?? "Central Admin",
+      newPharmacy.id,
+      "PHARMACY_CREATED",
+      `Central admin created pharmacy ${newPharmacy.name}`
+    );
+
+    res.status(201).json(newPharmacy);
+  } catch (error) {
+    console.error("ADMIN CREATE PHARMACY ERROR:", error);
+    res.status(500).json({ error: "Failed to create pharmacy record." });
+  }
+};
+
+export const updatePharmacy = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const pharmacyId = Number(req.params.id);
+    const {
+      name,
+      city,
+      address,
+      phone,
+      email,
+      api_url,
+      latitude,
+      longitude,
+      amo_supported,
+    } = req.body;
+
+    const updatedPharmacy = await prisma.pharmacy.update({
+      where: { id: pharmacyId },
+      data: {
+        name: name !== undefined ? String(name) : undefined,
+        city: city !== undefined ? String(city) : undefined,
+        address: address !== undefined ? String(address) : undefined,
+        phone: phone !== undefined ? String(phone) : undefined,
+        email: email !== undefined ? String(email) : undefined,
+        api_url: api_url !== undefined ? String(api_url) : undefined,
+        latitude: latitude !== undefined ? Number(latitude) : undefined,
+        longitude: longitude !== undefined ? Number(longitude) : undefined,
+        amo_supported: amo_supported !== undefined ? Boolean(amo_supported) : undefined,
+      },
+    });
+
+    await createActivityLog(
+      req.user?.adminId ?? "ADMIN",
+      req.user?.email ?? "Central Admin",
+      updatedPharmacy.id,
+      "PHARMACY_UPDATED",
+      `Central admin updated pharmacy ${updatedPharmacy.name}`
+    );
+
+    res.json(updatedPharmacy);
+  } catch (error) {
+    console.error("ADMIN UPDATE PHARMACY ERROR:", error);
+    res.status(500).json({ error: "Failed to update pharmacy record." });
+  }
+};
+
+export const deletePharmacy = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const pharmacyId = Number(req.params.id);
+    const pharmacy = await prisma.pharmacy.findUnique({ where: { id: pharmacyId } });
+
+    if (!pharmacy) {
+      return res.status(404).json({ error: "Pharmacy not found." });
+    }
+
+    await prisma.drugVisibility.deleteMany({ where: { pharmacyId } });
+    await prisma.agentActivityLog.deleteMany({ where: { pharmacyId } });
+    await prisma.agentRecord.deleteMany({ where: { pharmacyId } });
+    await prisma.pharmacy.delete({ where: { id: pharmacyId } });
+
+    // Logs associated with this pharmacy are deleted as part of registry cleanup.
+    res.json({ message: "Pharmacy removed successfully." });
+  } catch (error) {
+    console.error("ADMIN DELETE PHARMACY ERROR:", error);
+    res.status(500).json({ error: "Failed to delete pharmacy record." });
+  }
+};
+
+export const listAgents = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const agents = await prisma.agentRecord.findMany({
+      include: {
+        pharmacy: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json(
+      agents.map((agent) => ({
+        ...agent,
+        pharmacyName: agent.pharmacy?.name ?? "Unknown Pharmacy",
+      }))
+    );
+  } catch (error) {
+    console.error("ADMIN AGENT LIST ERROR:", error);
+    res.status(500).json({ error: "Unable to fetch agent roster." });
+  }
+};
+
+export const createAgent = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { agentNumber, name, pharmacyId, isActive } = req.body;
+
+    if (!agentNumber || !name || !pharmacyId) {
+      return res.status(400).json({ error: "Agent number, name, and pharmacy assignment are required." });
+    }
+
+    const pharmacy = await prisma.pharmacy.findUnique({
+      where: { id: Number(pharmacyId) },
+      select: { id: true, api_url: true },
+    });
+
+    if (!pharmacy) {
+      return res.status(404).json({ error: "Pharmacy not found." });
+    }
+
+    const active = isActive !== undefined ? Boolean(isActive) : true;
+
+    if (active) {
+      try {
+        await syncAgentCreate(pharmacy.api_url, String(agentNumber), String(name));
+      } catch (err: any) {
+        console.error("BRANCH AGENT CREATE SYNC ERROR:", err.message || err);
+        return res.status(502).json({ error: "Failed to sync agent to pharmacy branch." });
+      }
+    }
+
+    const agent = await prisma.agentRecord.create({
+      data: {
+        agentNumber: String(agentNumber),
+        name: String(name),
+        pharmacyId: Number(pharmacyId),
+        isActive: active,
+      },
+    });
+
+    await createActivityLog(
+      req.user?.adminId ?? "ADMIN",
+      req.user?.email ?? "Central Admin",
+      Number(pharmacyId),
+      "AGENT_CREATED",
+      `Created agent ${agent.agentNumber} for pharmacy ${agent.pharmacyId}`
+    );
+
+    res.status(201).json(agent);
+  } catch (error) {
+    console.error("ADMIN CREATE AGENT ERROR:", error);
+    res.status(500).json({ error: "Unable to create agent record." });
+  }
+};
+
+export const updateAgent = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const agentId = String(req.params.id);
+    const { name, isActive, pharmacyId } = req.body;
+
+    const existingAgent = await prisma.agentRecord.findUnique({ where: { id: agentId } });
+    if (!existingAgent) {
+      return res.status(404).json({ error: "Agent record not found." });
+    }
+
+    const targetPharmacyId =
+      pharmacyId !== undefined ? Number(pharmacyId) : existingAgent.pharmacyId;
+    const targetActive = isActive !== undefined ? Boolean(isActive) : existingAgent.isActive;
+    const targetName = name !== undefined ? String(name) : existingAgent.name;
+
+    const oldPharmacy = await prisma.pharmacy.findUnique({
+      where: { id: existingAgent.pharmacyId },
+      select: { api_url: true },
+    });
+    const newPharmacy = await prisma.pharmacy.findUnique({
+      where: { id: targetPharmacyId },
+      select: { api_url: true },
+    });
+
+    if (!newPharmacy) {
+      return res.status(404).json({ error: "Target pharmacy not found." });
+    }
+
+    try {
+      if (existingAgent.pharmacyId !== targetPharmacyId && oldPharmacy) {
+        await syncAgentDelete(oldPharmacy.api_url, existingAgent.agentNumber);
+      }
+
+      if (targetActive) {
+        if (existingAgent.pharmacyId !== targetPharmacyId) {
+          await syncAgentCreate(newPharmacy.api_url, existingAgent.agentNumber, targetName);
+        } else {
+          await syncAgentUpdate(
+            newPharmacy.api_url,
+            existingAgent.agentNumber,
+            targetName,
+            true
+          );
+        }
+      } else if (newPharmacy) {
+        await syncAgentDelete(newPharmacy.api_url, existingAgent.agentNumber);
+      }
+    } catch (err: any) {
+      console.error("BRANCH AGENT UPDATE SYNC ERROR:", err.message || err);
+      return res.status(502).json({ error: "Failed to sync agent update to pharmacy branch." });
+    }
+
+    const updatedAgent = await prisma.agentRecord.update({
+      where: { id: agentId },
+      data: {
+        name: name !== undefined ? String(name) : undefined,
+        isActive: isActive !== undefined ? Boolean(isActive) : undefined,
+        pharmacyId: pharmacyId !== undefined ? Number(pharmacyId) : undefined,
+      },
+    });
+
+    await createActivityLog(
+      req.user?.adminId ?? "ADMIN",
+      req.user?.email ?? "Central Admin",
+      updatedAgent.pharmacyId,
+      "AGENT_UPDATED",
+      `Admin updated agent ${updatedAgent.agentNumber}`
+    );
+
+    res.json(updatedAgent);
+  } catch (error) {
+    console.error("ADMIN UPDATE AGENT ERROR:", error);
+    res.status(500).json({ error: "Unable to update agent record." });
+  }
+};
+
+export const deleteAgent = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const agentId = String(req.params.id);
+    const existingAgent = await prisma.agentRecord.findUnique({ where: { id: agentId } });
+
+    if (!existingAgent) {
+      return res.status(404).json({ error: "Agent record not found." });
+    }
+
+    const pharmacy = await prisma.pharmacy.findUnique({
+      where: { id: existingAgent.pharmacyId },
+      select: { api_url: true },
+    });
+
+    if (pharmacy) {
+      try {
+        await syncAgentDelete(pharmacy.api_url, existingAgent.agentNumber);
+      } catch (err: any) {
+        console.error("BRANCH AGENT DELETE SYNC ERROR:", err.message || err);
+        return res.status(502).json({ error: "Failed to sync agent deletion to pharmacy branch." });
+      }
+    }
+
+    await prisma.agentRecord.delete({ where: { id: agentId } });
+
+    await createActivityLog(
+      req.user?.adminId ?? "ADMIN",
+      req.user?.email ?? "Central Admin",
+      existingAgent.pharmacyId,
+      "AGENT_DELETED",
+      `Deleted agent ${existingAgent.agentNumber}`
+    );
+
+    res.json({ message: "Agent removed successfully." });
+  } catch (error) {
+    console.error("ADMIN DELETE AGENT ERROR:", error);
+    res.status(500).json({ error: "Unable to delete agent record." });
+  }
+};
+
+export const listActivityLogs = async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    const logs = await prisma.agentActivityLog.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 120,
+      include: {
+        pharmacy: {
+          select: { name: true },
+        },
+      },
+    });
+
+    res.json(
+      logs.map((entry) => ({
+        id: entry.id,
+        agentNumber: entry.agentNumber,
+        agentName: entry.agentName,
+        pharmacyName: entry.pharmacy?.name ?? "Unknown Pharmacy",
+        pharmacyId: entry.pharmacyId,
+        action: entry.action,
+        details: entry.details,
+        createdAt: entry.createdAt,
+      }))
+    );
+  } catch (error) {
+    console.error("ADMIN ACTIVITY LOG LIST ERROR:", error);
+    res.status(500).json({ error: "Unable to fetch activity logs." });
+  }
+};
+
+export const getPharmacyStock = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const pharmacyId = Number(req.params.id);
+    const pharmacy = await prisma.pharmacy.findUnique({
+      where: { id: pharmacyId },
+      select: { id: true, name: true, api_url: true },
+    });
+
+    if (!pharmacy) {
+      return res.status(404).json({ error: "Pharmacy node not found." });
+    }
+
+    try {
+      const stockRes = await axios.get(`${pharmacy.api_url}/api/public-stock`, {
+        timeout: API_TIMEOUT,
+      });
+
+      res.json({ pharmacy: { id: pharmacy.id, name: pharmacy.name }, stock: stockRes.data });
+    } catch (err: any) {
+      console.error("ADMIN PHARMACY STOCK FETCH ERROR:", err.message || err);
+      return res.status(502).json({
+        error: `Unable to fetch live stock from branch node at ${pharmacy.api_url}`,
+      });
+    }
+  } catch (error) {
+    console.error("ADMIN PHARMACY STOCK ERROR:", error);
+    res.status(500).json({ error: "Unable to retrieve pharmacy stock data." });
+  }
+};
+
+AgentController: 
+import { Request, Response } from "express";
+import axios from "axios";
+import jwt from "jsonwebtoken";
+import { prisma } from "../db";
+
+const JWT_SECRET = process.env.JWT_SECRET || "super_secret_pharmacy_key_2026";
+
+// 🛠️ TEST SWITCH: Set to true to bypass remote port 3001 connection checks during local UI testing
+const MOCK_BRANCH_VALIDATION = false;
+
+const logAgentLogin = async (
+  agentNumber: string,
+  agentName: string,
+  pharmacyId: number,
+  action: string,
+  details?: string
+) => {
+  await prisma.agentRecord.upsert({
+    where: { agentNumber },
+    update: {
+      name: agentName,
+      pharmacyId,
+      isActive: true,
+    },
+    create: {
+      agentNumber,
+      name: agentName,
+      pharmacyId,
+      isActive: true,
+    },
+  });
+
+  await prisma.agentActivityLog.create({
+    data: {
+      agentNumber,
+      agentName,
+      pharmacyId,
+      action,
+      details: details ?? null,
+    },
+  });
+};
+
+// 1. LOCALIZED PHARMACY AGENT LOGIN
+export const agentLogin = async (req: Request, res: Response) => {
+  try {
+    const { pharmacyId, agentNumber } = req.body;
+
+    if (!pharmacyId || !agentNumber) {
+      return res.status(400).json({ error: "Pharmacy selection and Agent Number are required" });
+    }
+
+    // Look up the chosen pharmacy to find its unique microservice API URL
+    const pharmacy = await prisma.pharmacy.findUnique({
+      where: { id: Number(pharmacyId) }
+    });
+
+    if (!pharmacy) {
+      return res.status(404).json({ error: "Selected pharmacy not found in aggregator system" });
+    }
+
+    let isVerified = false;
+    let verifiedAgentName = "Pharmacy Agent";
+
+    if (MOCK_BRANCH_VALIDATION) {
+      // 🚀 Bypassing the network loop for rapid frontend verification
+      console.log(`🧪 Mocking successful verification for agent ${agentNumber} at ${pharmacy.name}`);
+      isVerified = true;
+      verifiedAgentName = "Mock Agent Account";
+    } else {
+      try {
+        // 🤝 Forward verification down to the remote branch node API
+        const remoteCheck = await axios.post(
+          `${pharmacy.api_url}/api/internal/verify-agent`, 
+          { agentNumber },
+          { timeout: 2000 } 
+        );
+
+        if (remoteCheck.data && remoteCheck.data.verified === true) {
+          isVerified = true;
+          verifiedAgentName = remoteCheck.data.agentName || "Pharmacy Agent";
+        }
+      } catch (networkError: any) {
+        console.error(`Authentication gateway failure connecting to ${pharmacy.name}:`, networkError.message);
+        
+        if (networkError.response?.status === 404) {
+          return res.status(502).json({ 
+            error: `Handshake failed: The branch node at ${pharmacy.name} is online but missing the /api/internal/verify-agent route.` 
+          });
+        }
+        return res.status(502).json({ error: "Could not establish secure link with pharmacy database" });
+      }
+    }
+
+    // Issue centralized tracking session token if verified successfully
+    if (isVerified) {
+      await logAgentLogin(agentNumber, verifiedAgentName, pharmacy.id, "AGENT_LOGGED_IN", `Agent logged in at ${pharmacy.name}`);
+
+      const token = jwt.sign(
+        { 
+          role: "AGENT", 
+          pharmacyId: pharmacy.id, 
+          pharmacyName: pharmacy.name,
+          agentName: verifiedAgentName,
+          agentNumber,
+        },
+        JWT_SECRET,
+        { expiresIn: "12h" }
+      );
+
+      return res.json({
+        message: "Login successful",
+        token,
+        user: {
+          role: "AGENT",
+          pharmacyName: pharmacy.name,
+          agentName: verifiedAgentName,
+          agentNumber,
+        }
+      });
+    }
+
+    return res.status(401).json({ error: "Invalid Agent Number for this pharmacy branch" });
+
+  } catch (error) {
+    console.error("GLOBAL AGENT AUTH ERROR:", error);
+    res.status(500).json({ error: "Internal authentication handler failed" });
+  }
+};
+
+// 2. CENTRAL SYSTEM ADMINISTRATOR LOGIN
+export const centralAdminLogin = async (req: Request, res: Response) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email and password are required" });
+    }
+
+    const admin = await prisma.centralAdmin.findUnique({
+      where: { email }
+    });
+
+    if (!admin || admin.password !== password) {
+      return res.status(401).json({ error: "Invalid central administrator credentials" });
+    }
+
+    const token = jwt.sign(
+      { 
+        role: "CENTRAL_ADMIN", 
+        adminId: admin.id,
+        email: admin.email
+      },
+      JWT_SECRET,
+      { expiresIn: "4h" }
+    );
+
+    return res.json({
+      message: "Admin verification successful",
+      token,
+      user: {
+        role: "CENTRAL_ADMIN",
+        email: admin.email
+      }
+    });
+
+  } catch (error) {
+    console.error("GLOBAL ADMIN AUTH ERROR:", error);
+    res.status(500).json({ error: "Internal administrative authentication handler failed" });
+  }
+};
+publicUserController:import { Request, Response } from "express";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import { prisma } from "../db";
+
+const JWT_SECRET = process.env.JWT_SECRET || "super_secret_public_key_999";
+
+// 1. REGISTER NEW USER
+export async function registerPublicUser(req: Request, res: Response) {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "All fields are required." });
+    }
+
+    const existingUser = await prisma.publicUser.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ message: "An account with this email already exists." });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = await prisma.publicUser.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+      },
+    });
+
+    const token = jwt.sign({ userId: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: "7d" });
+
+    return res.status(201).json({
+      token,
+      user: { id: newUser.id, name: newUser.name, email: newUser.email },
+    });
+  } catch (error) {
+    console.error("Registration Error:", error);
+    return res.status(500).json({ message: "Internal server error during registration." });
+  }
+}
+
+// 2. LOGIN USER
+export async function loginPublicUser(req: Request, res: Response) {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required." });
+    }
+
+    const user = await prisma.publicUser.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(401).json({ message: "Invalid email or password credentials." });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid email or password credentials." });
+    }
+
+    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: "7d" });
+
+    return res.status(200).json({
+      token,
+      user: { id: user.id, name: user.name, email: user.email },
+    });
+  } catch (error) {
+    console.error("Login Error:", error);
+    return res.status(500).json({ message: "Internal server error during login." });
+  }
+}
+
+// 3. GET USER SEARCH HISTORY
+export async function getSearchHistory(req: Request, res: Response) {
+  try {
+    const userId = (req as any).user?.userId;
+
+    const history = await prisma.searchHistory.findMany({
+      where: { publicUserId: userId },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+
+    return res.status(200).json(history.map((h) => ({
+      id: h.id,
+      query: h.query,
+      createdAt: h.createdAt,
+    })));
+  } catch (error) {
+    console.error("Fetch History Error:", error);
+    return res.status(500).json({ message: "Could not retrieve history logs." });
+  }
+}
+
+// 4. DELETE A SINGLE HISTORY ITEM
+export async function deleteSearchHistoryItem(req: Request, res: Response) {
+  try {
+    const userId = (req as any).user?.userId;
+    const rawId = req.params.id;
+    const id = Array.isArray(rawId) ? rawId[0] : rawId;
+
+    if (!id) {
+      return res.status(400).json({ message: "History item id is required." });
+    }
+
+    const item = await prisma.searchHistory.findUnique({ where: { id } });
+    if (!item || item.publicUserId !== userId) {
+      return res.status(404).json({ message: "History item not found." });
+    }
+
+    await prisma.searchHistory.delete({ where: { id } });
+    return res.status(200).json({ success: true, id });
+  } catch (error) {
+    console.error("Delete History Item Error:", error);
+    return res.status(500).json({ message: "Failed to delete history item." });
+  }
+}
+
+// 5. CLEAR ENTIRE SEARCH HISTORY
+export async function clearSearchHistory(req: Request, res: Response) {
+  try {
+    const userId = (req as any).user?.userId;
+
+    await prisma.searchHistory.deleteMany({ where: { publicUserId: userId } });
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Clear History Error:", error);
+    return res.status(500).json({ message: "Failed to clear history logs." });
+  }
+}
+
+// 6. SAVE SEARCH QUERY TO HISTORY
+export async function saveSearchQuery(req: Request, res: Response) {
+  try {
+    const userId = (req as any).user?.userId;
+    const { query } = req.body;
+
+    if (!query || !query.trim()) {
+      return res.status(400).json({ message: "Query string cannot be blank." });
+    }
+
+    await prisma.searchHistory.deleteMany({
+      where: {
+        publicUserId: userId,
+        query: { equals: query.trim(), mode: "insensitive" }
+      }
+    });
+
+    const historyItem = await prisma.searchHistory.create({
+      data: {
+        publicUserId: userId,
+        query: query.trim(),
+      },
+    });
+
+    return res.status(201).json({
+      success: true,
+      historyItem: {
+        id: historyItem.id,
+        query: historyItem.query,
+        createdAt: historyItem.createdAt,
+      }
+    });
+  } catch (error) {
+    console.error("Save Query Error:", error);
+    return res.status(500).json({ message: "Failed to persist history ledger record." });
+  }
+}
+searchController: import { Request, Response } from "express";
+import axios from "axios";
+import { prisma } from "../db";
+
+// 💊 logic for aggregating stock from all pharmacies (Filtered by Drug Visibility rules)
+export const aggregateStock = async (req: Request, res: Response) => {
+  try {
+    const drugName = req.params.drug as string;
+
+    const pharmacies = await prisma.pharmacy.findMany();
+
+    const results = await Promise.all(
+      pharmacies.map(async (pharmacy) => {
+        try {
+          // 🔒 DECENTRALIZED RULE: Check if the drug is explicitly hidden via schema definition
+          const visibilityBlock = await prisma.drugVisibility.findFirst({
+            where: {
+              pharmacyId: pharmacy.id,
+              drugName: { equals: drugName, mode: "insensitive" },
+              isHidden: true
+            }
+          });
+
+          // If an admin turned on the hidden restriction for this drug at this pharmacy, skip it!
+          if (visibilityBlock) {
+            console.log(`🛡️ Guardrail: ${drugName} is hidden for ${pharmacy.name}`);
+            return null;
+          }
+
+          const response = await axios.get(`${pharmacy.api_url}/api/public-stock`, { timeout: 1500 });
+          const stock = response.data.find(
+            (d: any) => d.name.toLowerCase() === drugName.toLowerCase()
+          );
+
+          if (!stock) return null;
+
+          return {
+            pharmacy: pharmacy.name,
+            city: pharmacy.city,
+            stock: stock.stock_quantity,
+            price: parseFloat(stock.selling_price),
+            amo_supported: pharmacy.amo_supported,
+            latitude: parseFloat(pharmacy.latitude as any),
+            longitude: parseFloat(pharmacy.longitude as any),
+            amo_rate: stock.amo_rate 
+          };
+        } catch (error) {
+          console.log(`Pharmacy ${pharmacy.name} unreachable or timed out`);
+          return null;
+        }
+      })
+    );
+
+    const filtered = results.filter((r) => r !== null).sort((a: any, b: any) => a.price - b.price);
+    res.json(filtered);
+  } catch (error) {
+    console.error("AGGREGATION ERROR:", error);
+    res.status(500).json({ error: "Aggregation failed" });
+  }
+};
+
+// 🎯 logic for merging suggestions from all pharmacies smoothly
+export const getGlobalSuggestions = async (req: Request, res: Response) => {
+  try {
+    const rawQuery = req.query.q as string;
+    if (!rawQuery) return res.json([]);
+
+    const query = rawQuery.trim();
+    if (query.length < 1) return res.json([]);
+
+    const pharmacies = await prisma.pharmacy.findMany();
+
+    const responses = await Promise.all(
+      pharmacies.map(async (pharmacy) => {
+        try {
+          const response = await axios.get(
+            `${pharmacy.api_url}/api/suggestions?q=${encodeURIComponent(query)}`,
+            { timeout: 1000 }
+          );
+          
+          const suggestions = response.data as string[];
+
+          // 🔒 DECENTRALIZED RULE: Find all blacklisted/hidden drug rules for this pharmacy node
+          const hiddenRules = await prisma.drugVisibility.findMany({
+            where: {
+              pharmacyId: pharmacy.id,
+              isHidden: true
+            },
+            select: { drugName: true }
+          });
+
+          const hiddenSet = new Set(hiddenRules.map(r => r.drugName.toLowerCase()));
+          
+          // Only return suggestions that aren't blacklisted for this pharmacy
+          return suggestions.filter(item => !hiddenSet.has(item.toLowerCase()));
+
+        } catch (axiosError) {
+          console.error(`Could not fetch suggestions from ${pharmacy.name} or request timed out`);
+          return [];
+        }
+      })
+    );
+
+    const merged = [...new Set(responses.flat())];
+    res.json(merged.slice(0, 10));
+  } catch (error) {
+    console.error("SUGGESTION ERROR:", error);
+    res.status(500).json({ error: "Suggestions failed" });
+  }
+};
+
+// 📋 logic for the full catalogue with pagination and auto-categorization
+export const getCatalogue = async (req: Request, res: Response) => {
+  try {
+    const DRUG_CATEGORIES: Record<string, string> = {
+      "artemether": "Anti-paludique",
+      "lumefantrine": "Anti-paludique",
+      "amoxicillin": "Antibiotique",
+      "paracetamol": "Antalgique / Antipyrétique",
+      "ibuprofen": "Anti-inflammatoire",
+      "metformin": "Antidabétique",
+      "omeprazole": "Gastro-entérologie",
+      "cetirizine": "Antihistaminique",
+    };
+
+    const assignCategory = (drugName: string) => {
+      const lowerName = drugName.toLowerCase();
+      for (const [keyword, category] of Object.entries(DRUG_CATEGORIES)) {
+        if (lowerName.includes(keyword)) return category;
+      }
+      return "Autres (Général)";
+    };
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+
+    const pharmacies = await prisma.pharmacy.findMany();
+
+    const results = await Promise.all(
+      pharmacies.map(async (pharmacy) => {
+        try {
+          // 🔒 DECENTRALIZED RULE: Gather hidden drug constraints to clean catalogue feeds on the fly
+          const hiddenRules = await prisma.drugVisibility.findMany({
+            where: {
+              pharmacyId: pharmacy.id,
+              isHidden: true
+            },
+            select: { drugName: true }
+          });
+          const hiddenSet = new Set(hiddenRules.map(r => r.drugName.toLowerCase()));
+
+          const response = await axios.get(`${pharmacy.api_url}/api/public-stock`, { timeout: 1500 });
+          const rawStock = response.data as any[];
+
+          // Strip restricted drugs out of the catalog arrays
+          return rawStock.filter((item: any) => !hiddenSet.has(item.name.trim().toLowerCase()));
+
+        } catch (error) {
+          console.error(`Catalogue: Pharmacy ${pharmacy.name} unreachable or timed out`);
+          return [];
+        }
+      })
+    );
+
+    const allStock = results.flat();
+    const catalogueMap = new Map();
+    
+    allStock.forEach((item: any) => {
+      const displayKey = item.name.trim(); 
+      const mapKey = displayKey.toLowerCase(); 
+      const price = parseFloat(item.selling_price);
+
+      if (!catalogueMap.has(mapKey)) {
+        catalogueMap.set(mapKey, {
+          name: displayKey,
+          category: assignCategory(displayKey),
+          minPrice: price,
+          availableAt: 1,
+        });
+      } else {
+        const existing = catalogueMap.get(mapKey);
+        existing.availableAt += 1;
+        if (price < existing.minPrice) {
+          existing.minPrice = price;
+        }
+      }
+    });
+
+    const formattedCatalogue = Array.from(catalogueMap.values());
+    
+    formattedCatalogue.sort((a, b) => {
+      if (a.category === b.category) {
+        return a.name.localeCompare(b.name);
+      }
+      return a.category.localeCompare(b.category);
+    });
+
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+    const paginatedResults = formattedCatalogue.slice(startIndex, endIndex);
+
+    res.json({
+      totalItems: formattedCatalogue.length,
+      totalPages: Math.ceil(formattedCatalogue.length / limit),
+      currentPage: page,
+      data: paginatedResults
+    });
+
+  } catch (error) {
+    console.error("CATALOGUE ERROR:", error);
+    res.status(500).json({ error: "Failed to load catalogue" });
+  }
+};
+visibilityController:
+import { Response } from "express";
+import { prisma } from "../db";
+import { AuthenticatedRequest } from "../middleware/authMiddleware";
+
+/**
+ * 🛡️ Manage whether a specific drug is visible at a specific pharmacy node
+ * Expects payload: { pharmacyId: number, drugName: string, isVisible: boolean }
+ */
+export const toggleDrugVisibility = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { pharmacyId, drugName, isVisible } = req.body;
+
+    // 1. Structural Validation
+    if (pharmacyId === undefined || !drugName || isVisible === undefined) {
+      return res.status(400).json({ error: "pharmacyId, drugName, and isVisible state are required" });
+    }
+
+    const parsedPharmacyId = Number(pharmacyId);
+    if (isNaN(parsedPharmacyId)) {
+      return res.status(400).json({ error: "Invalid pharmacyId structure format" });
+    }
+
+    // 2. Multi-Tenant Boundary Security
+    // Prevent standard branch agents from altering records belonging to foreign nodes
+    if (req.user?.role === "AGENT" && req.user.pharmacyId !== parsedPharmacyId) {
+      return res.status(403).json({ 
+        error: "Access denied. Agents can only manage visibility parameters for their assigned branch." 
+      });
+    }
+
+    // Mapping conversion logic: if visible is true -> isHidden must become false
+    const targetHiddenState = !Boolean(isVisible);
+    const normalizedDrugName = drugName.trim();
+
+    // 3. Confirm target pharmacy registration inside core registry
+    const pharmacyExists = await prisma.pharmacy.findUnique({
+      where: { id: parsedPharmacyId }
+    });
+
+    if (!pharmacyExists) {
+      return res.status(404).json({ error: "Target pharmacy node not registered in system aggregator" });
+    }
+
+    // 4. Determine existence of visibility override rule entry
+    const existingRule = await prisma.drugVisibility.findFirst({
+      where: {
+        pharmacyId: parsedPharmacyId,
+        drugName: { equals: normalizedDrugName, mode: "insensitive" }
+      }
+    });
+
+    if (existingRule) {
+      // Rule exists -> Update toggle properties
+      const updatedRule = await prisma.drugVisibility.update({
+        where: { id: existingRule.id },
+        data: { isHidden: targetHiddenState }
+      });
+
+      return res.json({
+        message: `Visibility restriction modified for ${normalizedDrugName}`,
+        rule: updatedRule
+      });
+    } else {
+      // Rule does not exist -> Generate new entry
+      const newRule = await prisma.drugVisibility.create({
+        data: {
+          pharmacyId: parsedPharmacyId,
+          drugName: normalizedDrugName,
+          isHidden: targetHiddenState
+        }
+      });
+
+      return res.status(201).json({
+        message: `New visibility block rule generated for ${normalizedDrugName}`,
+        rule: newRule
+      });
+    }
+
+  } catch (error) {
+    console.error("VISIBILITY TOGGLE SYSTEM ERROR:", error);
+    res.status(500).json({ error: "Internal server error updating visibility configurations" });
+  }
+};
+src/middleware/
+authmiddleware:
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "super_secret_pharmacy_key_2026";
+
+// Extend Express Request type to safely carry our unpacked token payload
+export interface AuthenticatedRequest extends Request {
+  user?: {
+    role: string;
+    adminId?: string;
+    pharmacyId?: number;
+    email?: string;
+    agentName?: string;
+  };
+}
+
+// 🛡️ Middleware to enforce valid token authentication
+export const requireAuth = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Access denied. No authentication token provided." });
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    req.user = decoded; // Attach the payload permissions to the request flow
+    next();
+  } catch (err) {
+    return res.status(403).json({ error: "Invalid, altered, or expired security token." });
+  }
+};
+
+// 👑 Middleware to restrict endpoints to high-clearance Central Administrators only
+export const requireCentralAdmin = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  if (!req.user || req.user.role !== "CENTRAL_ADMIN") {
+    return res.status(403).json({ error: "Unauthorized access. Central Admin credentials required." });
+  }
+  next();
+};
+src/routes/
+publicRoutes:
+import { Router, Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+import { 
+  registerPublicUser, 
+  loginPublicUser, 
+  getSearchHistory, 
+  saveSearchQuery,
+  deleteSearchHistoryItem,
+  clearSearchHistory
+} from "../controllers/publicUserController";
+
+const router = Router();
+const JWT_SECRET = process.env.JWT_SECRET || "super_secret_public_key_999";
+
+// 🛡️ JWT Authentication Middleware Guard
+function verifyToken(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1]; // Format: "Bearer <token>"
+
+  if (!token) {
+    return res.status(401).json({ message: "Access denied. Token missing." });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    (req as any).user = decoded;
+    next();
+  } catch (err) {
+    return res.status(403).json({ message: "Session expired or invalid token structure." });
+  }
+}
+
+// 🔓 Public Auth Access Gateways
+router.post("/public/register", registerPublicUser);
+router.post("/public/login", loginPublicUser);
+
+// 🔒 Protected Personalized Consumer History Routes
+router.get("/public/history", verifyToken, getSearchHistory);
+router.post("/public/history", verifyToken, saveSearchQuery);
+router.delete("/public/history", verifyToken, clearSearchHistory);
+router.delete("/public/history/:id", verifyToken, deleteSearchHistoryItem);
+
+export default router;
+search:import { Router } from "express";
+import { aggregateStock, getCatalogue, getGlobalSuggestions } from "../controllers/searchController";
+import { toggleDrugVisibility } from "../controllers/visibilityController";
+import { agentLogin, centralAdminLogin } from "../controllers/AgentController";
+import {
+  requireAuth,
+  requireCentralAdmin,
+} from "../middleware/authMiddleware";
+import {
+  listPharmacies,
+  createPharmacy,
+  updatePharmacy,
+  deletePharmacy,
+  listAgents,
+  createAgent,
+  updateAgent,
+  deleteAgent,
+  listActivityLogs,
+  getPharmacyStock,
+} from "../controllers/adminController";
+import { prisma } from "../db";
+
+const router = Router();
+
+// 🔓 Public Aggregator & Search Access
+router.get("/aggregate-stock/:drug", aggregateStock);
+router.get("/catalogue", getCatalogue);
+router.get("/suggestions", getGlobalSuggestions);
+
+// 🔓 Authentication Endpoints
+router.post("/auth/agent-login", agentLogin);
+router.post("/auth/admin-login", centralAdminLogin);
+
+// 🔓 Pharmacy Branch Discovery (Used by your Agent Login Dropdown)
+router.get("/pharmacies", async (req, res) => {
+    try {
+        const list = await prisma.pharmacy.findMany({
+            select: { id: true, name: true, city: true, api_url: true }
+        });
+        res.json(list);
+    } catch (err) {
+        res.status(500).json({ error: "Failed to pull registry nodes" });
+    }
+});
+
+// 🛡️ Protected Dashboard Layout Data (Requires a valid agent session)
+router.get("/visibility/:pharmacyId", requireAuth, async (req: any, res) => {
+    try {
+        const targetId = parseInt(req.params.pharmacyId);
+
+        // Guardrail: Ensure an Agent can't spy on a different pharmacy branch data list
+        if (req.user.role === "AGENT" && req.user.pharmacyId !== targetId) {
+            return res.status(403).json({ error: "Access denied to foreign node boundaries." });
+        }
+
+        const hiddenRecords = await prisma.drugVisibility.findMany({
+            where: { pharmacyId: targetId, isHidden: true },
+            select: { id: true, drugName: true }
+        });
+
+        // Remap data into a simple array of strings/IDs that the frontend dashboard handles gracefully
+        // Using IDs or remapping to names to fit your frontend state matching
+        const dummyIds = hiddenRecords.map((r, index) => index + 1); // Fallback mock or actual rule IDs
+        res.json({ hiddenIds: dummyIds, records: hiddenRecords });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to read node configurations" });
+    }
+});
+
+// 🛡️ Hybrid Visibility Toggle (Accessible by Central Admins OR verified Branch Agents)
+router.post("/visibility/toggle", requireAuth, toggleDrugVisibility);
+
+// 🏥 Central Admin Management
+router.get("/admin/pharmacies", requireAuth, requireCentralAdmin, listPharmacies);
+router.post("/admin/pharmacies", requireAuth, requireCentralAdmin, createPharmacy);
+router.put("/admin/pharmacies/:id", requireAuth, requireCentralAdmin, updatePharmacy);
+router.delete("/admin/pharmacies/:id", requireAuth, requireCentralAdmin, deletePharmacy);
+
+router.get("/admin/agents", requireAuth, requireCentralAdmin, listAgents);
+router.post("/admin/agents", requireAuth, requireCentralAdmin, createAgent);
+router.put("/admin/agents/:id", requireAuth, requireCentralAdmin, updateAgent);
+router.delete("/admin/agents/:id", requireAuth, requireCentralAdmin, deleteAgent);
+
+router.get("/admin/activity-logs", requireAuth, requireCentralAdmin, listActivityLogs);
+router.get("/admin/stock/:id", requireAuth, requireCentralAdmin, getPharmacyStock);
+
+export default router;
+
+src/services/
+branchSync
+../src/
+db:import { Pool } from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "./generated/prisma/client";
+import dotenv from "dotenv"; // <-- ADD THIS
+
+dotenv.config(); // <-- ADD THIS to load the .env file immediately!
+
+// 1. Create your standard pg pool using your environment variable
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+// 2. Wrap it with the Prisma 7 Driver Adapter
+const adapter = new PrismaPg(pool);
+
+// 3. Export the instantiated client
+export const prisma = new PrismaClient({ adapter });
+index:import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import searchRoutes from "./routes/search";
+import publicRoutes from "./routes/publicRoutes";
+
+dotenv.config();
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+// Routes
+app.use("/api", searchRoutes);
+app.use("/api", publicRoutes);
+
+// 🌟 Fix: Store the fallback so the console log never lies to you
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Central platform running on port ${PORT}`);
+});

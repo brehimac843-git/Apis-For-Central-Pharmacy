@@ -28,6 +28,7 @@ export type SearchHistoryMinAggregateOutputType = {
   id: string | null
   publicUserId: string | null
   query: string | null
+  type: string | null
   createdAt: Date | null
 }
 
@@ -35,6 +36,7 @@ export type SearchHistoryMaxAggregateOutputType = {
   id: string | null
   publicUserId: string | null
   query: string | null
+  type: string | null
   createdAt: Date | null
 }
 
@@ -42,6 +44,8 @@ export type SearchHistoryCountAggregateOutputType = {
   id: number
   publicUserId: number
   query: number
+  type: number
+  payload: number
   createdAt: number
   _all: number
 }
@@ -51,6 +55,7 @@ export type SearchHistoryMinAggregateInputType = {
   id?: true
   publicUserId?: true
   query?: true
+  type?: true
   createdAt?: true
 }
 
@@ -58,6 +63,7 @@ export type SearchHistoryMaxAggregateInputType = {
   id?: true
   publicUserId?: true
   query?: true
+  type?: true
   createdAt?: true
 }
 
@@ -65,6 +71,8 @@ export type SearchHistoryCountAggregateInputType = {
   id?: true
   publicUserId?: true
   query?: true
+  type?: true
+  payload?: true
   createdAt?: true
   _all?: true
 }
@@ -145,6 +153,8 @@ export type SearchHistoryGroupByOutputType = {
   id: string
   publicUserId: string
   query: string
+  type: string
+  payload: runtime.JsonValue | null
   createdAt: Date
   _count: SearchHistoryCountAggregateOutputType | null
   _min: SearchHistoryMinAggregateOutputType | null
@@ -173,6 +183,8 @@ export type SearchHistoryWhereInput = {
   id?: Prisma.StringFilter<"SearchHistory"> | string
   publicUserId?: Prisma.StringFilter<"SearchHistory"> | string
   query?: Prisma.StringFilter<"SearchHistory"> | string
+  type?: Prisma.StringFilter<"SearchHistory"> | string
+  payload?: Prisma.JsonNullableFilter<"SearchHistory">
   createdAt?: Prisma.DateTimeFilter<"SearchHistory"> | Date | string
   publicUser?: Prisma.XOR<Prisma.PublicUserScalarRelationFilter, Prisma.PublicUserWhereInput>
 }
@@ -181,6 +193,8 @@ export type SearchHistoryOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   publicUserId?: Prisma.SortOrder
   query?: Prisma.SortOrder
+  type?: Prisma.SortOrder
+  payload?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   publicUser?: Prisma.PublicUserOrderByWithRelationInput
 }
@@ -192,6 +206,8 @@ export type SearchHistoryWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.SearchHistoryWhereInput | Prisma.SearchHistoryWhereInput[]
   publicUserId?: Prisma.StringFilter<"SearchHistory"> | string
   query?: Prisma.StringFilter<"SearchHistory"> | string
+  type?: Prisma.StringFilter<"SearchHistory"> | string
+  payload?: Prisma.JsonNullableFilter<"SearchHistory">
   createdAt?: Prisma.DateTimeFilter<"SearchHistory"> | Date | string
   publicUser?: Prisma.XOR<Prisma.PublicUserScalarRelationFilter, Prisma.PublicUserWhereInput>
 }, "id">
@@ -200,6 +216,8 @@ export type SearchHistoryOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   publicUserId?: Prisma.SortOrder
   query?: Prisma.SortOrder
+  type?: Prisma.SortOrder
+  payload?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.SearchHistoryCountOrderByAggregateInput
   _max?: Prisma.SearchHistoryMaxOrderByAggregateInput
@@ -213,12 +231,16 @@ export type SearchHistoryScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"SearchHistory"> | string
   publicUserId?: Prisma.StringWithAggregatesFilter<"SearchHistory"> | string
   query?: Prisma.StringWithAggregatesFilter<"SearchHistory"> | string
+  type?: Prisma.StringWithAggregatesFilter<"SearchHistory"> | string
+  payload?: Prisma.JsonNullableWithAggregatesFilter<"SearchHistory">
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"SearchHistory"> | Date | string
 }
 
 export type SearchHistoryCreateInput = {
   id?: string
   query: string
+  type?: string
+  payload?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   publicUser: Prisma.PublicUserCreateNestedOneWithoutHistoryInput
 }
@@ -227,12 +249,16 @@ export type SearchHistoryUncheckedCreateInput = {
   id?: string
   publicUserId: string
   query: string
+  type?: string
+  payload?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
 export type SearchHistoryUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   query?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.StringFieldUpdateOperationsInput | string
+  payload?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   publicUser?: Prisma.PublicUserUpdateOneRequiredWithoutHistoryNestedInput
 }
@@ -241,6 +267,8 @@ export type SearchHistoryUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   publicUserId?: Prisma.StringFieldUpdateOperationsInput | string
   query?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.StringFieldUpdateOperationsInput | string
+  payload?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -248,12 +276,16 @@ export type SearchHistoryCreateManyInput = {
   id?: string
   publicUserId: string
   query: string
+  type?: string
+  payload?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
 export type SearchHistoryUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   query?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.StringFieldUpdateOperationsInput | string
+  payload?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -261,6 +293,8 @@ export type SearchHistoryUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   publicUserId?: Prisma.StringFieldUpdateOperationsInput | string
   query?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.StringFieldUpdateOperationsInput | string
+  payload?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -278,6 +312,8 @@ export type SearchHistoryCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   publicUserId?: Prisma.SortOrder
   query?: Prisma.SortOrder
+  type?: Prisma.SortOrder
+  payload?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -285,6 +321,7 @@ export type SearchHistoryMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   publicUserId?: Prisma.SortOrder
   query?: Prisma.SortOrder
+  type?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -292,6 +329,7 @@ export type SearchHistoryMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   publicUserId?: Prisma.SortOrder
   query?: Prisma.SortOrder
+  type?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -340,12 +378,16 @@ export type SearchHistoryUncheckedUpdateManyWithoutPublicUserNestedInput = {
 export type SearchHistoryCreateWithoutPublicUserInput = {
   id?: string
   query: string
+  type?: string
+  payload?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
 export type SearchHistoryUncheckedCreateWithoutPublicUserInput = {
   id?: string
   query: string
+  type?: string
+  payload?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
@@ -382,30 +424,40 @@ export type SearchHistoryScalarWhereInput = {
   id?: Prisma.StringFilter<"SearchHistory"> | string
   publicUserId?: Prisma.StringFilter<"SearchHistory"> | string
   query?: Prisma.StringFilter<"SearchHistory"> | string
+  type?: Prisma.StringFilter<"SearchHistory"> | string
+  payload?: Prisma.JsonNullableFilter<"SearchHistory">
   createdAt?: Prisma.DateTimeFilter<"SearchHistory"> | Date | string
 }
 
 export type SearchHistoryCreateManyPublicUserInput = {
   id?: string
   query: string
+  type?: string
+  payload?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
 export type SearchHistoryUpdateWithoutPublicUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   query?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.StringFieldUpdateOperationsInput | string
+  payload?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type SearchHistoryUncheckedUpdateWithoutPublicUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   query?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.StringFieldUpdateOperationsInput | string
+  payload?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type SearchHistoryUncheckedUpdateManyWithoutPublicUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   query?: Prisma.StringFieldUpdateOperationsInput | string
+  type?: Prisma.StringFieldUpdateOperationsInput | string
+  payload?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -415,6 +467,8 @@ export type SearchHistorySelect<ExtArgs extends runtime.Types.Extensions.Interna
   id?: boolean
   publicUserId?: boolean
   query?: boolean
+  type?: boolean
+  payload?: boolean
   createdAt?: boolean
   publicUser?: boolean | Prisma.PublicUserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["searchHistory"]>
@@ -423,6 +477,8 @@ export type SearchHistorySelectCreateManyAndReturn<ExtArgs extends runtime.Types
   id?: boolean
   publicUserId?: boolean
   query?: boolean
+  type?: boolean
+  payload?: boolean
   createdAt?: boolean
   publicUser?: boolean | Prisma.PublicUserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["searchHistory"]>
@@ -431,6 +487,8 @@ export type SearchHistorySelectUpdateManyAndReturn<ExtArgs extends runtime.Types
   id?: boolean
   publicUserId?: boolean
   query?: boolean
+  type?: boolean
+  payload?: boolean
   createdAt?: boolean
   publicUser?: boolean | Prisma.PublicUserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["searchHistory"]>
@@ -439,10 +497,12 @@ export type SearchHistorySelectScalar = {
   id?: boolean
   publicUserId?: boolean
   query?: boolean
+  type?: boolean
+  payload?: boolean
   createdAt?: boolean
 }
 
-export type SearchHistoryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "publicUserId" | "query" | "createdAt", ExtArgs["result"]["searchHistory"]>
+export type SearchHistoryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "publicUserId" | "query" | "type" | "payload" | "createdAt", ExtArgs["result"]["searchHistory"]>
 export type SearchHistoryInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   publicUser?: boolean | Prisma.PublicUserDefaultArgs<ExtArgs>
 }
@@ -462,6 +522,8 @@ export type $SearchHistoryPayload<ExtArgs extends runtime.Types.Extensions.Inter
     id: string
     publicUserId: string
     query: string
+    type: string
+    payload: runtime.JsonValue | null
     createdAt: Date
   }, ExtArgs["result"]["searchHistory"]>
   composites: {}
@@ -890,6 +952,8 @@ export interface SearchHistoryFieldRefs {
   readonly id: Prisma.FieldRef<"SearchHistory", 'String'>
   readonly publicUserId: Prisma.FieldRef<"SearchHistory", 'String'>
   readonly query: Prisma.FieldRef<"SearchHistory", 'String'>
+  readonly type: Prisma.FieldRef<"SearchHistory", 'String'>
+  readonly payload: Prisma.FieldRef<"SearchHistory", 'Json'>
   readonly createdAt: Prisma.FieldRef<"SearchHistory", 'DateTime'>
 }
     

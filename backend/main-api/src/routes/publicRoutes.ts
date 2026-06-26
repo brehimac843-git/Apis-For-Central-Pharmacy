@@ -2,9 +2,12 @@ import { Router, Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { 
   registerPublicUser, 
-  loginPublicUser, 
+  loginPublicUser,
+  verifyPublicUser,
+  updateProfilePhoto,
   getSearchHistory, 
   saveSearchQuery,
+  saveBulkSearchHistory,
   deleteSearchHistoryItem,
   clearSearchHistory
 } from "../controllers/publicUserController";
@@ -32,11 +35,15 @@ function verifyToken(req: Request, res: Response, next: NextFunction) {
 
 // 🔓 Public Auth Access Gateways
 router.post("/public/register", registerPublicUser);
+router.post("/public/signup", registerPublicUser);
 router.post("/public/login", loginPublicUser);
+router.get("/public/verify", verifyToken, verifyPublicUser);
+router.put("/public/profile/photo", verifyToken, updateProfilePhoto);
 
 // 🔒 Protected Personalized Consumer History Routes
 router.get("/public/history", verifyToken, getSearchHistory);
 router.post("/public/history", verifyToken, saveSearchQuery);
+router.post("/public/history/bulk", verifyToken, saveBulkSearchHistory);
 router.delete("/public/history", verifyToken, clearSearchHistory);
 router.delete("/public/history/:id", verifyToken, deleteSearchHistoryItem);
 

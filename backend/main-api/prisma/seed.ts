@@ -2,6 +2,7 @@ import "dotenv/config";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
+import bcrypt from "bcryptjs";
 
 // Initialize the PostgreSQL driver adapter for Prisma 7
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -11,13 +12,16 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log("🌱 Starting database seeding...");
 
-  // Clear dependent data in the correct order before deleting pharmacies
-  await prisma.drugVisibility.deleteMany({});
-  await prisma.agentActivityLog.deleteMany({});
-  await prisma.agentRecord.deleteMany({});
-  await prisma.pharmacy.deleteMany({});
+  await pool.query("CREATE EXTENSION IF NOT EXISTS pg_trgm;");
 
-  // Re-inject your 3 Bamako pharmacies
+  await prisma.searchHistory.deleteMany();
+  await prisma.publicUser.deleteMany();
+  await prisma.centralAdmin.deleteMany();
+  await prisma.drugVisibility.deleteMany();
+  await prisma.agentActivityLog.deleteMany();
+  await prisma.agentRecord.deleteMany();
+  await prisma.pharmacy.deleteMany();
+
   await prisma.pharmacy.createMany({
     data: [
       {
@@ -27,8 +31,8 @@ async function main() {
         city: "Bamako",
         phone: "+22370000001",
         email: "db1@pharma.ml",
-        latitude: 12.62000000,
-        longitude: -7.99000000,
+        latitude: 12.62,
+        longitude: -7.99,
         amo_supported: true,
         api_url: "http://localhost:3001",
       },
@@ -39,8 +43,8 @@ async function main() {
         city: "Bamako",
         phone: "+22370000002",
         email: "db2@pharma.ml",
-        latitude: 12.63920000,
-        longitude: -8.00290000,
+        latitude: 12.6392,
+        longitude: -8.0029,
         amo_supported: true,
         api_url: "http://localhost:3002",
       },
@@ -51,26 +55,57 @@ async function main() {
         city: "Bamako",
         phone: "+22370000003",
         email: "db3@pharma.ml",
-        latitude: 12.63000000,
-        longitude: -8.81500000,
+        latitude: 12.63,
+        longitude: -8.015,
         amo_supported: true,
         api_url: "http://localhost:3003",
       },
     ],
   });
 
-  console.log("✅ Seeding complete! All pharmacies restored successfully.");
+  await pool.query("SELECT setval('public.pharmacies_id_seq', (SELECT COALESCE(MAX(id), 1) FROM public.pharmacies), true);");
 
-  await prisma.centralAdmin.upsert({
-    where: { email: "admin@pharma.ml" },
-    update: { password: "admin123" },
-    create: {
+  await prisma.centralAdmin.create({
+    data: {
       email: "admin@pharma.ml",
       password: "admin123",
     },
   });
 
-  console.log("✅ Default admin credentials seeded: admin@pharma.ml / admin123");
+  const bcryptHash = await bcrypt.hash("userpass123", 10);
+
+  const user1 = await prisma.publicUser.create({
+    data: {
+      name: "Seydou Diarra",
+      email: "user1@pharma.ml",
+      password: bcryptHash,
+    },
+  });
+
+  const user2 = await prisma.publicUser.create({
+    data: {
+      name: "Aminata Coulibaly",
+      email: "user2@pharma.ml",
+      password: bcryptHash,
+    },
+  });
+
+  await prisma.searchHistory.createMany({
+    data: [
+      {
+        publicUserId: user1.id,
+        query: "paracetamol",
+        type: "single",
+      },
+      {
+        publicUserId: user2.id,
+        query: "amoxicillin",
+        type: "single",
+      },
+    ],
+  });
+
+  console.log("✅ Seed complete: pharmacies, central admin, public users, and search history created.");
 }
 
 main()
@@ -79,7 +114,6 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    // Safely disconnect client and close the connection pool
     await prisma.$disconnect();
     await pool.end();
   });

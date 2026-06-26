@@ -1,0 +1,230 @@
+backend/api1/src/controllers/
+authController:import { Request, Response } from "express";
+import { prisma } from "../db/index";
+
+export const verifyLocalAgent = async (req: Request, res: Response) => {
+  try {
+    const { agentNumber } = req.body;
+
+    if (!agentNumber) {
+      return res.status(400).json({ verified: false, error: "Agent number is required" });
+    }
+
+    const agent = await prisma.agent.findUnique({
+      where: { agent_number: agentNumber },
+    });
+
+    if (!agent) {
+      return res.status(404).json({ verified: false, error: "Agent not found in this pharmacy branch" });
+    }
+
+    return res.json({
+      verified: true,
+      agentName: agent.agent_name,
+      agentNumber: agent.agent_number,
+    });
+  } catch (error) {
+    console.error("LOCAL AGENT VERIFICATION ERROR:", error);
+    return res.status(500).json({ verified: false, error: "Internal pharmacy auth error" });
+  }
+};
+
+export const createLocalAgent = async (req: Request, res: Response) => {
+  try {
+    const { agentNumber, agentName } = req.body;
+
+    if (!agentNumber || !agentName) {
+      return res.status(400).json({ error: "agentNumber and agentName are required" });
+    }
+
+    const agent = await prisma.agent.create({
+      data: {
+        agent_number: String(agentNumber),
+        agent_name: String(agentName),
+      },
+    });
+
+    return res.status(201).json({
+      id: agent.id,
+      agentNumber: agent.agent_number,
+      agentName: agent.agent_name,
+    });
+  } catch (error: any) {
+    if (error?.code === "P2002") {
+      return res.status(409).json({ error: "Agent number already exists on this branch" });
+    }
+    console.error("CREATE LOCAL AGENT ERROR:", error);
+    return res.status(500).json({ error: "Failed to create branch agent" });
+  }
+};
+
+export const updateLocalAgent = async (req: Request, res: Response) => {
+  try {
+    const agentNumber = String(req.params.agentNumber);
+    const { agentName, isActive } = req.body;
+
+    const existing = await prisma.agent.findUnique({ where: { agent_number: agentNumber } });
+    if (!existing) {
+      return res.status(404).json({ error: "Agent not found on this branch" });
+    }
+
+    if (isActive === false) {
+      await prisma.agent.delete({ where: { agent_number: agentNumber } });
+      return res.json({ deleted: true, agentNumber });
+    }
+
+    const updated = await prisma.agent.update({
+      where: { agent_number: agentNumber },
+      data: {
+        agent_name: agentName !== undefined ? String(agentName) : undefined,
+      },
+    });
+
+    return res.json({
+      id: updated.id,
+      agentNumber: updated.agent_number,
+      agentName: updated.agent_name,
+    });
+  } catch (error) {
+    console.error("UPDATE LOCAL AGENT ERROR:", error);
+    return res.status(500).json({ error: "Failed to update branch agent" });
+  }
+};
+
+export const deleteLocalAgent = async (req: Request, res: Response) => {
+  try {
+    const agentNumber = String(req.params.agentNumber);
+
+    const existing = await prisma.agent.findUnique({ where: { agent_number: agentNumber } });
+    if (!existing) {
+      return res.status(404).json({ error: "Agent not found on this branch" });
+    }
+
+    await prisma.agent.delete({ where: { agent_number: agentNumber } });
+    return res.json({ deleted: true, agentNumber });
+  } catch (error) {
+    console.error("DELETE LOCAL AGENT ERROR:", error);
+    return res.status(500).json({ error: "Failed to delete branch agent" });
+  }
+};
+drugController:import { Request, Response } from 'express';
+import { prisma } from '../db/index';
+
+export const listDrugs = async (req: Request, res: Response) => {
+  try {
+    const drugs = await prisma.drug.findMany({
+      where: {
+        stock_quantity: { gt: 0 }
+      },
+      include: {
+        amoDrug: true 
+      }
+    });
+
+    const formattedRows = drugs.map((d: any) => ({
+      id: d.id,
+      name: d.name,
+      dosage: d.dosage,
+      form: d.form,
+      selling_price: parseFloat(d.selling_price),
+      stock_quantity: d.stock_quantity,
+      amo_rate: d.amoDrug ? d.amoDrug.reimbursement_rate : null
+    }));
+
+    res.json(formattedRows);
+  } catch (error) {
+    console.error("Error in listDrugs:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+export const getSuggestions = async (req: Request, res: Response) => {
+  try {
+    const query = req.query.q as string;
+    if (!query || query.length < 1) return res.json([]);
+
+    let rows;
+    if (query.length < 4) {
+      // ⚡ For 1-2 characters, use a lightning-fast left-anchored match
+      rows = await prisma.$queryRaw<{ name: string }[]>`
+        SELECT DISTINCT name FROM drugs 
+        WHERE name ILIKE ${query + '%'}
+        LIMIT 10
+      `;
+    } else {
+      // 🎯 For 3+ characters, use your advanced similarity matching
+      rows = await prisma.$queryRaw<{ name: string }[]>`
+        SELECT name FROM drugs 
+        WHERE name % ${query}
+        ORDER BY similarity(name, ${query}) DESC 
+        LIMIT 10
+      `;
+    }
+
+    res.json(rows.map(r => r.name));
+  } catch (error) {
+    console.error("Error in getSuggestions:", error);
+    res.status(500).json({ error: "Suggestion error" });
+  }
+};
+src/db/
+index:import { Pool } from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../generated/prisma/client"; // Points to your custom generated folder
+import dotenv from "dotenv";
+
+dotenv.config();
+
+// 1. Keep your existing environment variable pool configuration
+const pool = new Pool({
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT),
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME
+});
+
+// 2. Wrap it with the Prisma 7 Driver Adapter
+const adapter = new PrismaPg(pool);
+
+// 3. Export the instantiated client instead of the raw pool
+export const prisma = new PrismaClient({ adapter });
+src/routes/drugs/
+index:import { Router } from 'express';
+import { listDrugs, getSuggestions } from '../../controller/drugcontroller';
+import {
+  verifyLocalAgent,
+  createLocalAgent,
+  updateLocalAgent,
+  deleteLocalAgent,
+} from '../../controller/authController';
+
+const router = Router();
+
+router.get('/public-stock', listDrugs);
+router.get('/suggestions', getSuggestions);
+
+router.post('/internal/verify-agent', verifyLocalAgent);
+router.post('/internal/agents', createLocalAgent);
+router.put('/internal/agents/:agentNumber', updateLocalAgent);
+router.delete('/internal/agents/:agentNumber', deleteLocalAgent);
+
+export default router;
+src/
+index:import express, { json } from 'express';
+import cors from 'cors';
+import drugsRoutes from './routes/drugs/index';
+
+const app = express();
+const port = process.env.PORT || 3001;
+
+app.use(cors());
+app.use(json());
+
+// This makes all routes inside drugsRoutes prefixed with /api
+app.use('/api', drugsRoutes);
+
+app.listen(port, () => {
+    console.log(`Pharmacy API running on port ${port}`);
+});
+

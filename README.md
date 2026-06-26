@@ -1,34 +1,41 @@
 # Centralized Pharmacy Platform
 
-A federated pharmacy search and management platform. A central aggregator (`main-api`) queries decentralized pharmacy node APIs, each with its own PostgreSQL database.
+A federated pharmacy search and management platform. It includes a central aggregator (`backend/main-api`) and three branch pharmacy APIs (`backend/api1`, `backend/api2`, `backend/api3`), plus public and backoffice frontends.
 
 ## Prerequisites
 
-- Node.js 18+
-- PostgreSQL (local instance)
+- Node.js 18 or newer
+- PostgreSQL installed and running locally
+- `npm` available
 
-## Project Structure
+## Project structure
 
 ```
 backend/
-  main-api/           Central aggregator (port 3000)
-  api1/               Pharmacy node 1 (port 3001)
-  api2/               Pharmacy node 2 (port 3002)
-  api3/               Pharmacy node 3 (port 3003)
-frontend-public/      Consumer app (port 5173)
-frontend-backoffice/  Agent + admin portal (port 5174)
-SQLs/                 Database seed dumps for pharmacy nodes
+  main-api/           Central aggregator API (port 3000)
+  api1/               Pharmacy branch API 1 (port 3001)
+  api2/               Pharmacy branch API 2 (port 3002)
+  api3/               Pharmacy branch API 3 (port 3003)
+frontend-public/      Public consumer SPA (port 5173)
+frontend-backoffice/  Agent + admin portal SPA (port 5174)
+SQLs/                 PostgreSQL database exports for branch node seed data
 ```
 
-## Setup
+## Step-by-step setup
 
-### 1. Install dependencies
+### 1. Clone repository and install dependencies
 
 ```bash
+git clone <repository-url> reworked-apis
+cd reworked-apis
 npm install
 ```
 
-### 2. Create databases
+Because this repo uses npm workspaces, this installs all backend and frontend dependencies.
+
+### 2. Create PostgreSQL databases
+
+Run the following in `psql` or your database GUI:
 
 ```sql
 CREATE DATABASE pharmacy_main;
@@ -37,63 +44,167 @@ CREATE DATABASE pharmacy_db2;
 CREATE DATABASE pharmacy_db3;
 ```
 
-### 3. Configure environment
+### 3. Configure environment files
 
-**backend/main-api/.env**
-```
-DATABASE_URL="postgresql://postgres:PASSWORD@localhost:5432/pharmacy_main?schema=public"
+There are existing `.env` files for each backend package. Update the password value if your PostgreSQL password is not `strongpassword`.
+
+#### `backend/main-api/.env`
+
+```env
+DATABASE_URL="postgresql://postgres:strongpassword@localhost:5432/pharmacy_main?schema=public"
 PORT=3000
-JWT_SECRET=your_secret_here
+JWT_SECRET=super_secret_pharmacy_key_2026
 ```
 
-**backend/api1/.env** (repeat for api2/api3 with different DB_NAME and PORT)
-```
+#### `backend/api1/.env`
+
+```env
+DATABASE_URL="postgresql://postgres:strongpassword@localhost:5432/pharmacy_db1?schema=public"
 DB_HOST=localhost
-DB_USER=postgres
-DB_PASSWORD=PASSWORD
-DB_NAME=pharmacy_db1
 DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=strongpassword
+DB_NAME=pharmacy_db1
 PORT=3001
 ```
 
-**frontend-public/.env** and **frontend-backoffice/.env** (optional)
+#### `backend/api2/.env`
+
+```env
+DATABASE_URL="postgresql://postgres:strongpassword@localhost:5432/pharmacy_db2?schema=public"
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=strongpassword
+DB_NAME=pharmacy_db2
+PORT=3002
 ```
+
+#### `backend/api3/.env`
+
+```env
+DATABASE_URL="postgresql://postgres:strongpassword@localhost:5432/pharmacy_db3?schema=public"
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=strongpassword
+DB_NAME=pharmacy_db3
+PORT=3003
+```
+
+#### Frontend environment files (optional)
+
+Both frontends can use the same value.
+
+```env
 VITE_API_URL=http://localhost:3000
 ```
 
-### 4. Push schemas and seed
+If this file is absent, the apps default to `http://localhost:3000`.
+
+### 4. Push Prisma schemas and seed all backend databases
+
+Run these commands from the repo root:
 
 ```bash
-cd backend/main-api && npx prisma db push && npx prisma db seed
-cd ../api1 && npx prisma db push
-cd ../api2 && npx prisma db push
-cd ../api3 && npx prisma db push
+cd backend/main-api
+npx prisma db push
+npm run seed
+
+cd ../api1
+npx prisma db push
+npm run seed
+
+cd ../api2
+npx prisma db push
+npm run seed
+
+cd ../api3
+npx prisma db push
+npm run seed
 ```
 
-Load drug data from `SQLs/db1.sql`, `db2.sql`, `db3.sql`. Each node needs the `pg_trgm` extension.
+That will create the database schema and insert the seeded records for each backend service.
 
-### 5. Start services
+> Note: each branch API seed script also creates the `pg_trgm` extension if needed.
+
+### 5. Start backend services
+
+From the repository root:
 
 ```bash
-# All backend services
 ./start-cluster.sh
-
-# Consumer app (port 5173)
-cd frontend-public && npm run dev
-
-# Back office — agent + admin (port 5174)
-cd frontend-backoffice && npm run dev
 ```
 
-Default admin credentials (from seed): `admin@pharma.ml` / `admin123`
+This launches all four backend services in parallel:
 
-## Frontends
+- `backend/main-api` → `http://localhost:3000`
+- `backend/api1` → `http://localhost:3001`
+- `backend/api2` → `http://localhost:3002`
+- `backend/api3` → `http://localhost:3003`
 
-| App | Port | Audience |
-|-----|------|----------|
-| `frontend-public` | 5173 | Consumers — search, accounts, search history |
-| `frontend-backoffice` | 5174 | Agents and central admins |
+### 6. Start the frontends
 
-## Agent Sync
+Open two terminals and run:
 
-When a central admin creates, updates, or deletes an agent, the change syncs to the pharmacy branch node's local `agents` table. Agent login verifies against the branch node.
+```bash
+cd frontend-public
+npm run dev
+```
+
+```bash
+cd frontend-backoffice
+npm run dev
+```
+
+## Seeded data supplied
+
+### main-api
+
+- 3 pharmacies connected to branch APIs
+- central admin account
+- 2 public users
+- search history entries for sample users
+
+### api1, api2, api3
+
+- drug catalog data
+- AMO reimbursement records
+- one sample branch agent per node
+
+## Login credentials
+
+- Central admin: `admin@pharma.ml` / `admin123`
+- Public users:
+  - `user1@pharma.ml` / `userpass123`
+  - `user2@pharma.ml` / `userpass123`
+- Branch agents:
+  - `AGENT1-DB1`
+  - `AGENT2-DB2`
+  - `AGENT3-DB3`
+
+## Useful commands
+
+From the repo root:
+
+- `npm install` — install all workspaces
+- `npm --workspace backend/main-api exec prisma db push` — push main-api schema
+- `npm --workspace backend/api1 exec prisma db push` — push api1 schema
+- `npm --workspace backend/api2 exec prisma db push` — push api2 schema
+- `npm --workspace backend/api3 exec prisma db push` — push api3 schema
+- `cd frontend-public && npm run dev` — start public web app
+- `cd frontend-backoffice && npm run dev` — start backoffice app
+
+## Troubleshooting
+
+- If a backend fails to connect, verify the database name and password in the `.env` file.
+- If frontend requests fail, ensure `main-api` is running at `http://localhost:3000` and the `VITE_API_URL` setting is correct.
+- If `pg_trgm` is missing, run:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+```
+
+## Notes
+
+This README now includes all required steps to clone the repo, configure PostgreSQL, seed all databases, and start the full platform with real seeded data.

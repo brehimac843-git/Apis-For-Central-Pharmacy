@@ -1,0 +1,550 @@
+import { useState, useEffect, useRef } from "react"
+import axios from "axios"
+import PharmacyMap from "./components/PharmacyMap"
+import Catalogue from "./components/Catalogue"
+import { API_BASE } from "./config"
+import "./App.css"
+
+type Pharmacy = {
+  pharmacy: string
+  city: string
+  latitude: number
+  longitude: number
+  price: number
+  stock: number
+  amo_supported: boolean
+  amo_rate: number | null
+}
+
+type SearchHistoryItem = {
+  id: string
+  query: string
+  createdAt: string
+}
+
+function App() {
+  // 100% de ta logique d'états d'origine est préservée
+  const [publicToken, setPublicToken] = useState<string | null>(localStorage.getItem("public_token"))
+  const [publicUser, setPublicUser] = useState<any>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("public_user") || "null")
+    } catch {
+      return null
+    }
+  })
+  const [authMode, setAuthMode] = useState<'none' | 'login' | 'signup'>('none')
+  const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([])
+  const [showHistory, setShowHistory] = useState(false)
+  const [historyError, setHistoryError] = useState("")
+  const [authForm, setAuthForm] = useState({ name: "", surname: "", email: "", password: "" })
+  const [authError, setAuthError] = useState("")
+
+  const [query, setQuery] = useState("")
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(-1)
+  const [results, setResults] = useState<Pharmacy[]>([])
+  const [selectedPharmacy, setSelectedPharmacy] = useState<Pharmacy | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [showCatalogue, setShowCatalogue] = useState(false)
+  const [filterAmo, setFilterAmo] = useState(false)
+  const [sortByPrice, setSortByPrice] = useState("default")
+
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    if (publicUser?.email && publicToken) {
+      loadSearchHistory()
+    } else {
+      setSearchHistory([])
+      setShowHistory(false)
+    }
+  }, [publicUser, publicToken])
+
+  // Vos fonctions de communication Axios - Intactes à 100%
+  const loadSearchHistory = async () => {
+    if (!publicUser?.email || !publicToken) {
+      setSearchHistory([])
+      return
+    }
+    try {
+      const res = await axios.get(`${API_BASE}/api/public/history`, {
+        headers: { Authorization: `Bearer ${publicToken}` },
+      })
+      setSearchHistory(res.data || [])
+      setHistoryError("")
+    } catch {
+      setHistoryError("Unable to load saved history. Please try again later.")
+      setSearchHistory([])
+    }
+  }
+
+  async function fetchSuggestions(q: string) {
+    if (q.trim().length < 1) {
+      setSuggestions([])
+      return
+    }
+    if (abortControllerRef.current) abortControllerRef.current.abort()
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+    try {
+      const res = await axios.get(`${API_BASE}/api/suggestions?q=${encodeURIComponent(q)}`, {
+        signal: controller.signal,
+      })
+      setSuggestions(res.data)
+    } catch (err) {
+      if (!axios.isCancel(err)) console.error(err)
+    }
+  }
+
+  async function searchDrug(name: string) {
+    if (!name.trim()) return
+    setShowCatalogue(false)
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    if (abortControllerRef.current) abortControllerRef.current.abort()
+
+    setLoading(true)
+    try {
+      const res = await axios.get(`${API_BASE}/api/aggregate-stock/${encodeURIComponent(name.trim())}`)
+      setResults(res.data)
+      setSuggestions([])
+      setShowSuggestions(false)
+      setFilterAmo(false)
+      setSortByPrice("default")
+
+      if (publicToken && publicUser) {
+        try {
+          const historyRes = await axios.post(
+            `${API_BASE}/api/public/history`,
+            { query: name.trim() },
+            { headers: { Authorization: `Bearer ${publicToken}` } }
+          )
+          const historyItem = historyRes.data?.historyItem
+          if (historyItem) {
+            setSearchHistory((prev) => {
+              const filtered = prev.filter((item) => item.query.toLowerCase() !== name.trim().toLowerCase())
+              return [historyItem, ...filtered].slice(0, 10)
+            })
+          } else {
+            loadSearchHistory()
+          }
+        } catch (error) {
+          console.error("Failed to persist search history", error)
+        }
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || suggestions.length === 0) {
+      if (e.key === "Enter" && query.trim().length >= 1) searchDrug(query)
+      return
+    }
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault()
+        setActiveIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : prev))
+        break
+      case "ArrowUp":
+        e.preventDefault()
+        setActiveIndex((prev) => (prev > 0 ? prev - 1 : prev))
+        break
+      case "Enter":
+        e.preventDefault()
+        if (activeIndex >= 0 && activeIndex < suggestions.length) {
+          const selected = suggestions[activeIndex]
+          setQuery(selected)
+          searchDrug(selected)
+        } else {
+          searchDrug(query)
+        }
+        break
+      case "Escape":
+        setShowSuggestions(false)
+        break
+    }
+  }
+
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAuthError("")
+    try {
+      if (authMode === 'signup') {
+        const combinedName = `${authForm.name.trim()} ${authForm.surname.trim()}`
+        const res = await axios.post(`${API_BASE}/api/public/register`, {
+          name: combinedName,
+          email: authForm.email,
+          password: authForm.password,
+        })
+        localStorage.setItem("public_token", res.data.token)
+        localStorage.setItem("public_user", JSON.stringify(res.data.user))
+        setPublicToken(res.data.token)
+        setPublicUser(res.data.user)
+      } else {
+        const res = await axios.post(`${API_BASE}/api/public/login`, {
+          email: authForm.email,
+          password: authForm.password,
+        })
+        localStorage.setItem("public_token", res.data.token)
+        localStorage.setItem("public_user", JSON.stringify(res.data.user))
+        setPublicToken(res.data.token)
+        setPublicUser(res.data.user)
+      }
+      setAuthMode('none')
+      setAuthForm({ name: "", surname: "", email: "", password: "" })
+    } catch (err: any) {
+      setAuthError(err.response?.data?.message || "Authentication failed.")
+    }
+  }
+
+  const handlePublicLogout = () => {
+    localStorage.removeItem("public_token")
+    localStorage.removeItem("public_user")
+    setPublicToken(null)
+    setPublicUser(null)
+    setSearchHistory([])
+    setShowHistory(false)
+  }
+
+  const clearHistory = async () => {
+    if (!publicUser || !publicToken) {
+      setSearchHistory([])
+      return
+    }
+    try {
+      await axios.delete(`${API_BASE}/api/public/history`, {
+        headers: { Authorization: `Bearer ${publicToken}` },
+      })
+      setSearchHistory([])
+      setShowHistory(false)
+      setHistoryError("")
+    } catch {
+      setHistoryError("Unable to clear history right now.")
+    }
+  }
+
+  const deleteHistoryItem = async (id: string) => {
+    if (!publicUser || !publicToken) return
+    try {
+      await axios.delete(`${API_BASE}/api/public/history/${id}`, {
+        headers: { Authorization: `Bearer ${publicToken}` },
+      })
+      setSearchHistory((prev) => prev.filter((item) => item.id !== id))
+    } catch {
+      setHistoryError("Unable to delete that entry.")
+    }
+  }
+
+  const extractAmoRate = (pharmacy: Pharmacy): number => pharmacy.amo_rate ?? 0
+
+  const displayedResults = results
+    .filter((r) => (filterAmo ? extractAmoRate(r) > 0 : true))
+    .sort((a, b) => {
+      if (sortByPrice === "price_asc") return a.price - b.price
+      if (sortByPrice === "price_desc") return b.price - a.price
+      return 0
+    })
+
+  // --- VUE DÉTAILLÉE D'UNE PHARMACIE SÉLECTIONNÉE ---
+  if (selectedPharmacy) {
+    const rate = extractAmoRate(selectedPharmacy)
+    const discount = selectedPharmacy.price * (rate / 100)
+    const finalPrice = selectedPharmacy.price - discount
+
+    return (
+      <div className="app-container" style={{ background: "#f8fafc", minHeight: "100vh", padding: "20px" }}>
+        <button 
+          className="back-button" 
+          onClick={() => setSelectedPharmacy(null)}
+          style={{ padding: "10px 20px", background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "12px", color: "#475569", fontWeight: 600, cursor: "pointer", marginBottom: "20px", boxShadow: "0 2px 4px rgba(0,0,0,0.02)" }}
+        >
+          ← Retour aux résultats
+        </button>
+        <main className="detail-grid">
+          <section className="info-section">
+            <h1 className="detail-title" style={{ color: "#0f172a", fontWeight: 800, fontSize: "2rem", marginBottom: "15px" }}>{selectedPharmacy.pharmacy}</h1>
+            <div className="detail-card" style={{ background: "#ffffff", padding: "25px", borderRadius: "20px", border: "1px solid #e2e8f0", boxShadow: "0 10px 25px rgba(0,0,0,0.03)" }}>
+              <p className="detail-city" style={{ color: "#64748b", fontWeight: 500, margin: "0 0 20px 0" }}>📍 {selectedPharmacy.city}, Mali</p>
+              
+              <div className="price-section" style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
+                <div className="price-badge" style={{ background: "#f0fdf4", color: "#16a34a", padding: "12px 20px", borderRadius: "12px", inlineSize: "max-content", fontWeight: 700, fontSize: "1.25rem" }}>
+                  {selectedPharmacy.price} FCFA
+                </div>
+                {rate > 0 && (
+                  <div className="amo-tag" style={{ background: "#10b981", color: "white", padding: "8px 14px", borderRadius: "8px", fontSize: "0.9rem", fontWeight: 600, width: "max-content" }}>
+                    ✅ Prise en charge AMO : {rate}% (-{discount.toFixed(0)} FCFA)
+                  </div>
+                )}
+              </div>
+
+              <hr style={{ border: "none", borderTop: "1px dashed #e2e8f0", margin: "20px 0" }} />
+
+              <div className="total-to-pay" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "25px" }}>
+                <strong style={{ color: "#0f172a", fontSize: "1.1rem" }}>Reste à payer :</strong> 
+                <span style={{ fontSize: "1.6rem", fontWeight: 800, color: "#065f46" }}>{(rate > 0 ? finalPrice : selectedPharmacy.price).toFixed(0)} FCFA</span>
+              </div>
+
+              {/* Correction template string syntaxe : ajout du symbole $ manquant */}
+              <a 
+                className="directions-button" 
+                href={`https://maps.google.com/?q=$${selectedPharmacy.latitude},${selectedPharmacy.longitude}`} 
+                target="_blank" 
+                rel="noreferrer"
+                style={{ display: "block", textAlign: "center", background: "#10b981", color: "white", padding: "14px", borderRadius: "12px", fontWeight: 700, textDecoration: "none", transition: "background 0.2s" }}
+              >
+                Obtenir l'itinéraire ↗
+              </a>
+            </div>
+          </section>
+          
+          <section className="map-section" style={{ marginTop: "25px" }}>
+            <h3 style={{ marginBottom: '15px', color: '#0f172a', fontWeight: 700 }}>Localisation sur la carte</h3>
+            <div style={{ borderRadius: "20px", overflow: "hidden", border: "1px solid #e2e8f0", boxShadow: "0 10px 25px rgba(0,0,0,0.02)" }}>
+              <PharmacyMap pharmacies={[selectedPharmacy]} />
+            </div>
+          </section>
+        </main>
+      </div>
+    )
+  }
+
+  return (
+    <div className="app-container" style={{ position: 'relative', background: "#f8fafc", minHeight: "100vh", padding: "24px" }}>
+      
+      {/* --- MODAL D'AUTHENTIFICATION LOOK MEDICAL BLANC ET VERT (IMG_20260626_071658.jpg) --- */}
+      {authMode !== 'none' && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.4)', backdropFilter: "blur(4px)", display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 5000 }}>
+          <div style={{ background: '#ffffff', padding: '35px', borderRadius: '24px', border: '1px solid #e2e8f0', width: '100%', maxWidth: '420px', color: '#0f172a', boxShadow: "0 20px 50px rgba(0,0,0,0.1)" }}>
+            <div style={{ textAlign: "center", marginBottom: "20px" }}>
+              <span style={{ fontSize: "2.5rem" }}>🌿</span>
+              <h2 style={{ margin: "10px 0 0 0", color: '#0f172a', fontWeight: 800 }}>{authMode === 'login' ? "Connexion" : "Créer un compte"}</h2>
+            </div>
+            
+            {authError && <p style={{ color: '#ef4444', fontSize: '0.9rem', background: '#fef2f2', padding: '12px', borderRadius: '10px', border: "1px solid #fee2e2", fontWeight: 500 }}>{authError}</p>}
+            
+            <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {authMode === 'signup' && (
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <input type="text" placeholder="Prénom" required value={authForm.name} style={{ flex: 1, padding: '12px 16px', borderRadius: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#0f172a', minWidth: '0', fontWeight: 500 }} onChange={(e) => setAuthForm({ ...authForm, name: e.target.value })} />
+                  <input type="text" placeholder="Nom" required value={authForm.surname} style={{ flex: 1, padding: '12px 16px', borderRadius: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#0f172a', minWidth: '0', fontWeight: 500 }} onChange={(e) => setAuthForm({ ...authForm, surname: e.target.value })} />
+                </div>
+              )}
+              <input type="email" placeholder="Adresse email" required value={authForm.email} style={{ padding: '12px 16px', borderRadius: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#0f172a', fontWeight: 500 }} onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })} />
+              <input type="password" placeholder="Mot de passe" required value={authForm.password} style={{ padding: '12px 16px', borderRadius: '10px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#0f172a', fontWeight: 500 }} onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })} />
+              
+              <button type="submit" style={{ padding: '14px', borderRadius: '12px', background: '#10b981', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer', fontSize: "0.95rem", boxShadow: "0 4px 12px rgba(16, 185, 129, 0.2)" }}>
+                {authMode === 'login' ? "Se connecter" : "S'inscrire"}
+              </button>
+            </form>
+            
+            <p style={{ fontSize: '0.9rem', color: '#64748b', textAlign: 'center', marginTop: '20px', fontWeight: 500 }}>
+              {authMode === 'login' ? "Nouveau sur Central Pharma ? " : "Vous avez déjà un compte ? "}
+              <span style={{ color: '#10b981', cursor: 'pointer', textDecoration: 'underline', fontWeight: 600 }} onClick={() => { setAuthError(""); setAuthMode(authMode === 'login' ? 'signup' : 'login') }}>
+                {authMode === 'login' ? "Créer un compte" : "Se connecter"}
+              </span>
+            </p>
+            <button onClick={() => { setAuthMode('none'); setAuthError("") }} style={{ width: '100%', padding: '10px', marginTop: '5px', background: 'transparent', color: '#64748b', border: 'none', cursor: 'pointer', fontWeight: 500 }}>Annuler</button>
+          </div>
+        </div>
+      )}
+
+      {/* --- EN-TÊTE SUPÉRIEURE (IMG_20260626_071647.jpg) --- */}
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px', background: "#ffffff", padding: "16px 24px", borderRadius: "18px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.01)" }}>
+        <div className="logo-area" style={{ cursor: 'pointer', display: "flex", alignItems: "center", gap: "10px" }} onClick={() => { setShowCatalogue(false); setResults([]) }}>
+          <span style={{ fontSize: '2.2rem' }}>🌿</span>
+          <h1 style={{ color: "#0f172a", fontSize: "1.5rem", fontWeight: 800, margin: 0 }}>Central Pharma</h1>
+        </div>
+
+        {/* COMPOSANT DE RECHERCHE PRINCIPAL */}
+        <div className="search-wrapper" style={{ position: 'relative', flex: 1, maxWidth: '550px' }}>
+          <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+            <input
+              className="search-input"
+              placeholder="Veuillez Entrez le nom du medicament rechercher..."
+              value={query}
+              style={{ flex: 1, padding: "12px 18px", borderRadius: "14px", border: "2px solid #e2e8f0", background: "#f8fafc", color: "#0f172a", fontSize: "0.95rem", fontWeight: 500 }}
+              onChange={(e) => {
+                const val = e.target.value
+                setQuery(val)
+                setActiveIndex(-1)
+                setShowSuggestions(true)
+                if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+                typingTimeoutRef.current = setTimeout(() => { fetchSuggestions(val) }, 250)
+              }}
+              onKeyDown={handleKeyDown}
+              onFocus={() => setShowSuggestions(true)}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            />
+            <button
+              onClick={() => { setShowCatalogue(!showCatalogue); setResults([]) }}
+              style={{ padding: '0 22px', borderRadius: '14px', background: showCatalogue ? '#ef4444' : '#10b981', color: 'white', border: 'none', cursor: 'pointer', fontWeight: '700', fontSize: "0.9rem", boxShadow: showCatalogue ? "none" : "0 4px 12px rgba(16, 185, 129, 0.15)", transition: "all 0.2s" }}
+            >
+              {showCatalogue ? "Fermer Catalogue" : "Voir Catalogue"}
+            </button>
+          </div>
+
+          {/* LISTE DÉROULANTE DES SUGGESTIONS */}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="suggestions-dropdown" style={{ maxWidth: '100%', position: 'absolute', left: 0, right: 0, zIndex: 1000, backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', marginTop: '8px', boxShadow: "0 10px 25px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+              {suggestions.map((s, i) => (
+                <div
+                  key={i}
+                  className="suggestion-item"
+                  style={{ padding: '12px 18px', cursor: 'pointer', color: '#334155', fontWeight: 500, backgroundColor: i === activeIndex ? '#f0fdf4' : 'transparent', borderBottom: i < suggestions.length - 1 ? "1px solid #f1f5f9" : "none", display: "flex", alignItems: "center", gap: "10px" }}
+                  onMouseDown={() => { setQuery(s); setShowSuggestions(false); searchDrug(s) }}
+                  onMouseEnter={() => setActiveIndex(i)}
+                >
+                  <span style={{ color: "#10b981" }}>🔍</span> {s}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* BLOC AUTHENTIFICATION ET ACTIONS SESSIONS */}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {publicToken && publicUser ? (
+            <>
+              <button onClick={() => setShowHistory(!showHistory)} style={{ padding: '10px 18px', borderRadius: '12px', background: showHistory ? '#10b981' : '#ffffff', color: showHistory ? 'white' : '#475569', border: '1px solid #e2e8f0', cursor: 'pointer', fontWeight: '600', fontSize: "0.9rem" }}>
+                📜 {showHistory ? "Masquer l'historique" : "Historique"}
+              </button>
+              <div style={{ color: '#0f172a', fontSize: '0.9rem', fontWeight: 600 }}>
+                Bonjour, <strong style={{ color: '#10b981' }}>{publicUser.name ? publicUser.name.split(' ')[0] : "User"}</strong>
+              </div>
+              <button onClick={handlePublicLogout} style={{ padding: '10px 16px', borderRadius: '12px', background: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2', cursor: 'pointer', fontWeight: '600', fontSize: "0.9rem" }}>
+                Déconnexion
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={() => setAuthMode('login')} style={{ padding: '10px 18px', borderRadius: '12px', background: 'transparent', color: '#10b981', border: '1px solid #10b981', cursor: 'pointer', fontWeight: '600', fontSize: "0.9rem" }}>
+                Se connecter
+              </button>
+              <button onClick={() => setAuthMode('signup')} style={{ padding: '10px 18px', borderRadius: '12px', background: '#10b981', color: 'white', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: "0.9rem", boxShadow: "0 4px 10px rgba(16, 185, 129, 0.15)" }}>
+                S'inscrire
+              </button>
+            </>
+          )}
+        </div>
+      </header>
+
+      {/* --- BLOC HISTORIQUE DE RECHERCHE STRUCTURÉ (IMG_20260626_071629.jpg) --- */}
+      {publicToken && showHistory && (
+        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0', padding: '24px', borderRadius: '20px', marginTop: '20px', textAlign: 'left', boxShadow: "0 10px 25px rgba(0,0,0,0.02)" }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <h4 style={{ margin: 0, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '0.85rem', fontWeight: 700 }}>Votre Historique de recherche</h4>
+            {searchHistory.length > 0 && (
+              <button onClick={clearHistory} style={{ background: 'transparent', color: '#ef4444', border: 'none', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'underline', fontWeight: 600 }}>
+                Tout effacer
+              </button>
+            )}
+          </div>
+          {historyError && <p style={{ color: '#ef4444', margin: '8px 0', fontSize: '0.85rem', fontWeight: 500 }}>{historyError}</p>}
+          {searchHistory.length === 0 ? (
+            <p style={{ color: '#94a3b8', margin: 0, fontSize: '0.9rem', fontStyle: 'italic' }}>Aucune recherche récente.</p>
+          ) : (
+            <div style={{ display: 'grid', gap: '10px' }}>
+              {searchHistory.map((item) => (
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '14px', transition: "all 0.2s" }}>
+                  <button onClick={() => { setQuery(item.query); searchDrug(item.query) }} style={{ textAlign: 'left', background: 'transparent', border: 'none', color: '#0f172a', cursor: 'pointer', fontSize: '0.95rem', padding: 0, flex: 1, fontWeight: 500 }}>
+                    <div style={{ marginBottom: '4px', fontWeight: 600 }}>🕒 {item.query}</div>
+                    <div style={{ color: '#64748b', fontSize: '0.78rem' }}>{new Date(item.createdAt).toLocaleString()}</div>
+                  </button>
+                  <button onClick={() => deleteHistoryItem(item.id)} style={{ marginLeft: '12px', padding: '8px 14px', borderRadius: '10px', border: 'none', background: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
+                    Supprimer
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* --- SECTION PRINCIPALE : VUE DU CATALOGUE OU GRILLE DES RÉSULTATS --- */}
+      <main className="results-list" style={{ marginTop: "25px" }}>
+        {showCatalogue ? (
+          <Catalogue onSelectDrug={(drugName) => { setQuery(drugName); setShowCatalogue(false); searchDrug(drugName) }} />
+        ) : (
+          <>
+            {loading && (
+              <div style={{ color: '#10b981', textAlign: 'center', padding: '30px', fontWeight: 600, fontSize: "1.1rem" }}>
+                🔍 Recherche en cours dans la base de données...
+              </div>
+            )}
+            
+            {!loading && results.length > 0 && (
+              <>
+                <h2 style={{ color: "#0f172a", fontSize: "1.4rem", fontWeight: 800, marginBottom: "15px" }}>Pharmacies disponibles</h2>
+                
+                {/* BARRE DE FILTRAGE ET TRI BIEN PROPRE */}
+                <div className="filter-bar" style={{ display: 'flex', gap: '20px', marginBottom: '25px', alignItems: 'center', backgroundColor: '#ffffff', padding: '12px 20px', borderRadius: '14px', border: '1px solid #e2e8f0', flexWrap: "wrap", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.01)" }}>
+                  <label style={{ color: '#334155', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: "0.9rem", fontWeight: 600 }}>
+                    <input type="checkbox" checked={filterAmo} onChange={(e) => setFilterAmo(e.target.checked)} style={{ width: "16px", height: "16px", accentColor: "#10b981" }} /> Uniquement conventionnés AMO ✅
+                  </label>
+                  <select value={sortByPrice} onChange={(e) => setSortByPrice(e.target.value)} style={{ padding: '8px 12px', borderRadius: '8px', border: "1px solid #e2e8f0", background: '#f8fafc', color: '#334155', cursor: 'pointer', fontSize: "0.9rem", fontWeight: 500 }}>
+                    <option value="default">Tri : Par défaut</option>
+                    <option value="price_asc">Prix : Du - cher au + cher</option>
+                    <option value="price_desc">Prix : Du + cher au - cher</option>
+                  </select>
+                </div>
+
+                {/* GRILLE D'AFFICHAGE DES PHARMACIES PARTENAIRES */}
+                <div className="cards-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
+                  {displayedResults.map((r, i) => {
+                    const cardRate = extractAmoRate(r)
+                    return (
+                      <div 
+                        key={i} 
+                        className="pharmacy-card clickable" 
+                        onClick={() => setSelectedPharmacy(r)}
+                        style={{ background: "#ffffff", padding: "20px", borderRadius: "18px", border: "1px solid #e2e8f0", cursor: "pointer", display: "flex", flexDirection: "column", justifyContent: "space-between", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.02)", transition: "all 0.2s" }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = "#10b981";
+                          e.currentTarget.style.transform = "translateY(-2px)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = "#e2e8f0";
+                          e.currentTarget.style.transform = "none";
+                        }}
+                      >
+                        <div>
+                          <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px", marginBottom: "8px" }}>
+                            <h3 style={{ margin: 0, fontSize: "1.15rem", fontWeight: 700, color: "#0f172a" }}>{r.pharmacy}</h3>
+                            <span className="price-tag" style={{ color: "#065f46", fontWeight: 700, fontSize: "1.05rem", background: "#f0fdf4", padding: "4px 10px", borderRadius: "8px", whiteSpace: "nowrap" }}>{r.price} FCFA</span>
+                          </div>
+                          <p style={{ color: "#64748b", fontSize: "0.88rem", margin: "0 0 15px 0" }}>📍 {r.city}, Mali</p>
+                        </div>
+
+                        <div className="card-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "12px", borderTop: "1px dashed #f1f5f9" }}>
+                          {cardRate > 0 ? (
+                            <span className="amo-label" style={{ background: "#10b981", color: "white", padding: "4px 8px", borderRadius: "6px", fontSize: "0.75rem", fontWeight: 600 }}>AMO {cardRate}%</span>
+                          ) : (
+                            <span style={{ fontSize: "0.75rem", color: "#94a3b8" }}>Non conventionné</span>
+                          )}
+                          <span className="view-details-link" style={{ fontSize: "0.82rem", color: "#10b981", fontWeight: 600 }}>Détails & Carte →</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  
+                  {displayedResults.length === 0 && (
+                    <p style={{ color: '#64748b', gridColumn: '1 / -1', textAlign: 'center', padding: '30px', fontStyle: "italic" }}>
+                      Aucune pharmacie ne correspond à vos critères de filtrage actuels.
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </main>
+    </div>
+  )
+}
+
+export default App
