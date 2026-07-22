@@ -63,12 +63,12 @@ export default function PharmacyMap({ pharmacies }: { pharmacies: Pharmacy[] }) 
                       {p.amo_supported ? (
                         <div className="flex items-center gap-2 text-success">
                           <Check className="w-4 h-4" />
-                          <span>AMO Supported</span>
+                          <span>Couvert par l'AMO</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 text-danger">
                           <X className="w-4 h-4" />
-                          <span>No AMO</span>
+                          <span>Pas d'AMO</span>
                         </div>
                       )}
                     </div>

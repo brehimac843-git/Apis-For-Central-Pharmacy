@@ -1,10 +1,20 @@
 import { Request, Response } from "express";
 import axios from "axios";
+import bcrypt from "bcryptjs";
 import { prisma } from "../db";
 import { AuthenticatedRequest } from "../middleware/authMiddleware";
 import { syncAgentCreate, syncAgentDelete, syncAgentUpdate, getBranchSyncWarning } from "../services/branchSync";
 
 const API_TIMEOUT = 4000;
+
+const normalizePublicUserRow = (row: any) => ({
+  id: row.id,
+  name: row.name,
+  email: row.email,
+  photo: row.photo ?? null,
+  isActive: row.isActive ?? true,
+  createdAt: row.createdAt,
+});
 
 const createActivityLog = async (
   agentNumber: string,
@@ -367,6 +377,150 @@ export const deleteAgent = async (req: AuthenticatedRequest, res: Response) => {
   } catch (error) {
     console.error("ADMIN DELETE AGENT ERROR:", error);
     res.status(500).json({ error: "Unable to delete agent record." });
+  }
+};
+
+export const listPublicUsers = async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    const users = await prisma.publicUser.findMany({
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        photo: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    res.json(users.map(normalizePublicUserRow));
+  } catch (error) {
+    console.error("ADMIN PUBLIC USER LIST ERROR:", error);
+    res.status(500).json({ error: "Unable to fetch system users." });
+  }
+};
+
+export const createPublicUser = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { name, email, password, isActive } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: "Name, email and password are required." });
+    }
+
+    const normalizedEmail = String(email).toLowerCase();
+    const existingUser = await prisma.publicUser.findUnique({ where: { email: normalizedEmail } });
+
+    if (existingUser) {
+      return res.status(409).json({ error: "A user with that email already exists." });
+    }
+
+    const hashedPassword = await bcrypt.hash(String(password), 10);
+    const user = await prisma.publicUser.create({
+      data: {
+        name: String(name),
+        email: normalizedEmail,
+        password: hashedPassword,
+        photo: null,
+        isActive: Boolean(isActive ?? true),
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        photo: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    res.status(201).json(normalizePublicUserRow(user));
+  } catch (error) {
+    console.error("ADMIN CREATE PUBLIC USER ERROR:", error);
+    res.status(500).json({ error: "Unable to create system user." });
+  }
+};
+
+export const updatePublicUser = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = String(req.params.id);
+    const { name, email, password, isActive } = req.body;
+
+    const existingUser = await prisma.publicUser.findUnique({ where: { id: userId } });
+    if (!existingUser) {
+      return res.status(404).json({ error: "System user not found." });
+    }
+
+    const data: any = {};
+
+    if (name !== undefined) {
+      data.name = String(name);
+    }
+
+    if (email !== undefined) {
+      const normalizedEmail = String(email).toLowerCase();
+      const duplicate = await prisma.publicUser.findFirst({
+        where: {
+          email: normalizedEmail,
+          id: { not: userId },
+        },
+      });
+
+      if (duplicate) {
+        return res.status(409).json({ error: "A user with that email already exists." });
+      }
+
+      data.email = normalizedEmail;
+    }
+
+    if (password !== undefined && String(password).trim()) {
+      data.password = await bcrypt.hash(String(password), 10);
+    }
+
+    if (isActive !== undefined) {
+      data.isActive = Boolean(isActive);
+    }
+
+    if (Object.keys(data).length === 0) {
+      return res.status(400).json({ error: "No user fields were provided for update." });
+    }
+
+    const updatedUser = await prisma.publicUser.update({
+      where: { id: userId },
+      data,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        photo: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    res.json(normalizePublicUserRow(updatedUser));
+  } catch (error) {
+    console.error("ADMIN UPDATE PUBLIC USER ERROR:", error);
+    res.status(500).json({ error: "Unable to update system user." });
+  }
+};
+
+export const deletePublicUser = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = String(req.params.id);
+
+    const existingUser = await prisma.publicUser.findUnique({ where: { id: userId } });
+    if (!existingUser) {
+      return res.status(404).json({ error: "System user not found." });
+    }
+
+    await prisma.publicUser.delete({ where: { id: userId } });
+
+    res.json({ message: "User removed successfully." });
+  } catch (error) {
+    console.error("ADMIN DELETE PUBLIC USER ERROR:", error);
+    res.status(500).json({ error: "Unable to delete system user." });
   }
 };
 

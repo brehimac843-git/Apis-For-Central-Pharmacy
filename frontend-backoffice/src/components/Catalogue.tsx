@@ -45,9 +45,13 @@ export default function Catalogue({ onSelectDrug }: Props) {
         const newDrugs = result.data.filter((d: CatalogueDrug) => !existingNames.has(d.name));
         return [...prevDrugs, ...newDrugs];
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching catalogue:", error);
-      setCatalogueError(error.message || "Unable to load catalogue.");
+      if (error instanceof Error) {
+        setCatalogueError(error.message || "Unable to load catalogue.");
+      } else {
+        setCatalogueError("Unable to load catalogue.");
+      }
       setHasMore(false);
     } finally {
       setLoading(false);
@@ -55,7 +59,11 @@ export default function Catalogue({ onSelectDrug }: Props) {
   };
 
   useEffect(() => {
-    fetchCatalogue(page);
+    const loadPage = async () => {
+      await fetchCatalogue(page);
+    };
+
+    void loadPage();
   }, [page]);
 
   const filteredDrugs = drugs.filter((drug) => {

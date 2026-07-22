@@ -4,8 +4,13 @@ import { Link, useNavigate } from "react-router-dom"
 import { ROUTES } from "../routes"
 import Logo from "./Logo"
 
+type PublicUser = {
+  guest?: boolean
+  photo?: string
+}
+
 type Props = {
-  user: any
+  user: PublicUser | null
   onLogout: () => void
   onUpdateUserPhoto: (photo: string) => Promise<void>
   onOpenLogin: () => void
@@ -78,7 +83,7 @@ export default function Header({ user, onLogout, onUpdateUserPhoto, onOpenLogin,
                 onClick={() => navigate(ROUTES.history)}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-full shadow-sm hover:bg-primary-700 transition"
               >
-                <span className="text-sm font-semibold">History</span>
+                <span className="text-sm font-semibold">Historique</span>
               </button>
             )}
           </div>
@@ -108,7 +113,7 @@ export default function Header({ user, onLogout, onUpdateUserPhoto, onOpenLogin,
                       className="w-full text-left px-4 py-3 hover:bg-slate-50 transition text-slate-700 font-medium flex items-center gap-2"
                     >
                       <Upload className="w-4 h-4" />
-                      Change photo
+                        Changer la photo
                     </button>
                     <button
                       type="button"
@@ -118,7 +123,7 @@ export default function Header({ user, onLogout, onUpdateUserPhoto, onOpenLogin,
                       }}
                       className="w-full text-left px-4 py-3 hover:bg-slate-50 transition text-slate-700 font-medium border-t border-slate-100"
                     >
-                      Logout
+                      Se déconnecter
                     </button>
                   </div>
                 )}
@@ -140,7 +145,7 @@ export default function Header({ user, onLogout, onUpdateUserPhoto, onOpenLogin,
                   className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-full shadow-sm hover:bg-slate-50 transition text-slate-700"
                 >
                   <LogIn className="w-4 h-4" />
-                  <span className="text-sm font-semibold">Sign In</span>
+                  <span className="text-sm font-semibold">Se connecter</span>
                   <ChevronDown className="w-4 h-4 text-slate-500" />
                 </button>
 
@@ -154,8 +159,8 @@ export default function Header({ user, onLogout, onUpdateUserPhoto, onOpenLogin,
                       }}
                       className="w-full text-left px-4 py-3 hover:bg-slate-50 transition text-slate-700 font-medium"
                     >
-                      <span className="block font-semibold">Log in</span>
-                      <span className="block text-xs text-slate-500 mt-0.5">Already have an account</span>
+                      <span className="block font-semibold">Connexion</span>
+                      <span className="block text-xs text-slate-500 mt-0.5">Vous avez déjà un compte</span>
                     </button>
                     <button
                       type="button"
@@ -165,8 +170,8 @@ export default function Header({ user, onLogout, onUpdateUserPhoto, onOpenLogin,
                       }}
                       className="w-full text-left px-4 py-3 hover:bg-slate-50 transition text-slate-700 font-medium border-t border-slate-100"
                     >
-                      <span className="block font-semibold">Sign up</span>
-                      <span className="block text-xs text-slate-500 mt-0.5">Create a new account</span>
+                      <span className="block font-semibold">S'inscrire</span>
+                      <span className="block text-xs text-slate-500 mt-0.5">Créer un nouveau compte</span>
                     </button>
                   </div>
                 )}

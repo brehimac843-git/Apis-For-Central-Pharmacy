@@ -1,0 +1,255 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.1 Chrome/142.0.7444.265 Electron/39.5.2 Safari/36" pages="5">
+  <diagram name="Architecture générale" id="arch-general">
+    <mxGraphModel dx="1800" dy="1100" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="PharmaCare - Architecture générale" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="220" y="20" width="980" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="group1" value="Clients" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#e8f5e9;strokeColor=#66bb6a;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="120" width="260" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="public" value="Frontend public&#xa;frontend-public&#xa;Port 5173" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="110" y="170" width="200" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="back" value="Frontend backoffice&#xa;frontend-backoffice&#xa;Port 5174" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="110" y="300" width="200" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="central" value="Main API&#xa;backend/main-api&#xa;Port 3000&#xa;DB: pharmacy_main" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="430" y="210" width="260" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="group2" value="Pharmacies / Branches" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#fce4ec;strokeColor=#e91e63;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="760" y="90" width="300" height="440" as="geometry" />
+        </mxCell>
+        <mxCell id="branch1" value="API1 / DB1&#xa;backend/api1&#xa;Port 3001&#xa;DB: pharmacy_db1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="800" y="140" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="branch2" value="API2 / DB2&#xa;backend/api2&#xa;Port 3002&#xa;DB: pharmacy_db2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="800" y="270" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="branch3" value="API3 / DB3&#xa;backend/api3&#xa;Port 3003&#xa;DB: pharmacy_db3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="800" y="400" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="edge1" edge="1" parent="1" source="public" target="central" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;" value="search / auth">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge2" edge="1" parent="1" source="back" target="central" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;" value="admin / agent">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge3" edge="1" parent="1" source="central" target="branch1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;" value="stock · suggestions · agent sync">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge4" edge="1" parent="1" source="central" target="branch2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;" value="same pattern">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge5" edge="1" parent="1" source="central" target="branch3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;" value="same pattern">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Main API - Diagramme de classes" id="main-class">
+    <mxGraphModel dx="1654" dy="2226" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=18;fontStyle=1;" value="Main API - Diagramme de classes UML" vertex="1">
+          <mxGeometry height="50" width="1120" x="250" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="groupa" parent="1" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#fff8e1;strokeColor=#fbc02d;fontStyle=1;" value="Gestion des pharmacies et agents" vertex="1">
+          <mxGeometry height="440" width="760" x="60" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="pharmacy" parent="groupa" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" value="Pharmacy&#xa;--------------------&#xa;- id: Int&#xa;- name: String&#xa;- address: String&#xa;- city: String&#xa;- phone: String&#xa;- email: String&#xa;- latitude: Decimal&#xa;- longitude: Decimal&#xa;- amo_supported: Boolean&#xa;- api_url: String&#xa;--------------------&#xa;+ register()&#xa;+ updateLocation()&#xa;+ syncBranchAgent()&#xa;+ manageVisibilityRule()" vertex="1">
+          <mxGeometry height="260" width="250" x="-20" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="activitylog" parent="1" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;arcSize=24;" value="AgentActivityLog&#xa;--------------------&#xa;- id: String&#xa;- agentNumber: String&#xa;- agentName: String&#xa;- pharmacyId: Int&#xa;- action: String&#xa;- details: String?&#xa;- createdAt: DateTime&#xa;--------------------&#xa;+ record(action, details)" vertex="1">
+          <mxGeometry height="230" width="250" x="610" y="610" as="geometry" />
+        </mxCell>
+        <mxCell id="visibility" parent="1" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;arcSize=12;" value="DrugVisibility&#xa;--------------------&#xa;- id: String&#xa;- pharmacyId: Int&#xa;- drugName: String&#xa;- isHidden: Boolean&#xa;--------------------&#xa;+ hide()&#xa;+ show()" vertex="1">
+          <mxGeometry height="150" width="250" x="80" y="631" as="geometry" />
+        </mxCell>
+        <mxCell id="groupb" parent="1" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#e3f2fd;strokeColor=#42a5f5;fontStyle=1;" value="Utilisateurs, administration et historique" vertex="1">
+          <mxGeometry height="420" width="760" x="860" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="publicuser" parent="groupb" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;" value="PublicUser&#xa;--------------------&#xa;- id: String&#xa;- name: String&#xa;- email: String&#xa;- password: String&#xa;- photo: String?&#xa;- isActive: Boolean&#xa;- createdAt: DateTime&#xa;--------------------&#xa;+ register()&#xa;+ login()&#xa;+ searchDrug()" vertex="1">
+          <mxGeometry height="220" width="250" x="460" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="centraladmin" parent="groupb" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;arcSize=20;" value="CentralAdmin&#xa;--------------------&#xa;- id: String&#xa;- email: String&#xa;- password: String&#xa;--------------------&#xa;+ login()&#xa;+ managePharmacy()&#xa;+ manageAgent()&#xa;+ viewAgentActivity()" vertex="1">
+          <mxGeometry height="180" width="250" x="100" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="searchhistory" parent="1" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;" value="SearchHistory&#xa;--------------------&#xa;- id: String&#xa;- publicUserId: String&#xa;- query: String&#xa;- type: String&#xa;- payload: Json?&#xa;- createdAt: DateTime&#xa;--------------------&#xa;+ store(query, type, payload)" vertex="1">
+          <mxGeometry height="220" width="250" x="1230" y="660" as="geometry" />
+        </mxCell>
+        <mxCell id="rel2" edge="1" parent="1" source="pharmacy" style="endArrow=diamondThin;endFill=1;html=1;rounded=0;" target="activitylog" value="1 → 0..* activity trail">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel3" edge="1" parent="1" source="pharmacy" style="endArrow=diamondThin;endFill=1;html=1;rounded=0;" target="visibility" value="1 → 0..* visibility rules">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel4" edge="1" parent="1" source="publicuser" style="endArrow=diamondThin;endFill=1;html=1;rounded=0;" target="searchhistory" value="1 → 0..* search history">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel5" edge="1" parent="1" source="centraladmin" style="endArrow=classic;endFill=1;html=1;rounded=0;" target="pharmacy" value="manages">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel6" edge="1" parent="1" source="centraladmin" style="endArrow=classic;endFill=1;html=1;rounded=0;" target="agentrecord" value="creates / reviews">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel7" edge="1" parent="1" source="centraladmin" style="endArrow=classic;endFill=1;html=1;rounded=0;" target="activitylog" value="reviews activity">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="agentrecord" parent="1" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;" value="AgentRecord&#xa;--------------------&#xa;- id: String&#xa;- agentNumber: String&#xa;- name: String&#xa;- pharmacyId: Int&#xa;- isActive: Boolean&#xa;- createdAt: DateTime&#xa;--------------------&#xa;+ create()&#xa;+ activate()&#xa;+ deactivate()&#xa;+ verify()" vertex="1">
+          <mxGeometry height="220" width="250" x="450" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="rel1" edge="1" parent="1" source="pharmacy" style="endArrow=diamondThin;endFill=1;html=1;rounded=0;" target="agentrecord" value="1 → 0..* owned by pharmacy">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="Main API - MPD" id="main-mpd">
+    <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title3" value="Main API - MPD / Schéma physique" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="180" y="20" width="1040" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="groupc" value="Tables principales" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#fff8e1;strokeColor=#fbc02d;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="100" width="680" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="t1" value="pharmacies&#xa;id PK&#xa;name&#xa;address&#xa;city&#xa;phone&#xa;email&#xa;latitude&#xa;longitude&#xa;amo_supported&#xa;api_url" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="140" width="220" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="t2" value="agents&#xa;id PK&#xa;agentNumber UNIQUE&#xa;name&#xa;pharmacyId FK → pharmacies.id&#xa;isActive&#xa;createdAt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="340" y="140" width="230" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="t3" value="agent_activity_logs&#xa;id PK&#xa;agentNumber&#xa;agentName&#xa;pharmacyId FK → pharmacies.id&#xa;action&#xa;details&#xa;createdAt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="340" y="340" width="230" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="t4" value="drug_visibilities&#xa;id PK&#xa;pharmacyId FK → pharmacies.id&#xa;drugName&#xa;isHidden&#xa;UNIQUE(pharmacyId, drugName)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="390" width="220" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="groupd" value="Tables utilisateurs" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#e3f2fd;strokeColor=#42a5f5;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="810" y="100" width="520" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="t5" value="central_admins&#xa;id PK&#xa;email UNIQUE&#xa;password" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="840" y="140" width="220" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="t6" value="public_users&#xa;id PK&#xa;name&#xa;email UNIQUE&#xa;password&#xa;photo&#xa;isActive&#xa;createdAt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="140" width="220" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="t7" value="search_histories&#xa;id PK&#xa;publicUserId FK → public_users.id&#xa;query&#xa;type&#xa;payload JSON&#xa;createdAt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="340" width="220" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="rel5" edge="1" parent="1" source="t1" target="t2" style="endArrow=classic;endFill=1;html=1;rounded=0;" value="FK pharmacyId">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel6" edge="1" parent="1" source="t1" target="t3" style="endArrow=classic;endFill=1;html=1;rounded=0;" value="FK pharmacyId">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel7" edge="1" parent="1" source="t1" target="t4" style="endArrow=classic;endFill=1;html=1;rounded=0;" value="FK pharmacyId">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel8" edge="1" parent="1" source="t6" target="t7" style="endArrow=classic;endFill=1;html=1;rounded=0;" value="FK publicUserId">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="API1 - Diagramme de classes" id="api1-class">
+    <mxGraphModel dx="1480" dy="918" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=18;fontStyle=1;" value="API1 - Diagramme de classes UML" vertex="1">
+          <mxGeometry height="50" width="1120" x="250" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="groupe1" parent="1" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#f3e5f5;strokeColor=#ab47bc;fontStyle=1;" value="Produits et remboursement" vertex="1">
+          <mxGeometry height="320" width="660" x="70" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="amodrug" parent="groupe1" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" value="AmoDrug&#xa;--------------------&#xa;- id: Int&#xa;- drug_id: Int&#xa;- reimbursement_rate: Int&#xa;--------------------&#xa;+ create()&#xa;+ calculateReimbursement()" vertex="1">
+          <mxGeometry height="160" width="250" x="370" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="drug" parent="groupe1" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" value="Drug&#xa;--------------------&#xa;- id: Int&#xa;- name: String&#xa;- dosage: String&#xa;- form: String&#xa;- buying_price: Decimal?&#xa;- selling_price: Decimal&#xa;- stock_quantity: Int&#xa;- expiry_date: DateTime&#xa;--------------------&#xa;+ create()&#xa;+ updateStock()&#xa;+ setPrice()&#xa;+ linkAmoDrug()" vertex="1">
+          <mxGeometry height="250" width="260" x="-10" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="rel9" edge="1" parent="groupe1" source="drug" style="endArrow=diamondThin;endFill=1;html=1;rounded=0;" target="amodrug" value="1 → 0..1 AMO detail">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="agent" parent="1" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" value="Agent&#xa;--------------------&#xa;- id: Int&#xa;- agent_name: String&#xa;- agent_number: String&#xa;- created_at: DateTime&#xa;--------------------&#xa;+ verifyAgent()&#xa;+ create()&#xa;+ update()&#xa;+ delete()" vertex="1">
+          <mxGeometry height="180" width="260" x="110" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="groupe2" parent="1" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#ede7f6;strokeColor=#7e57c2;fontStyle=1;" value="Ventes et patients" vertex="1">
+          <mxGeometry height="650" width="760" x="780" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="saleitem" parent="groupe2" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" value="SaleItem&#xa;--------------------&#xa;- id: Int&#xa;- sale_id: Int&#xa;- drug_id: Int&#xa;- quantity: Int&#xa;- unit_price: Decimal&#xa;--------------------&#xa;+ create()&#xa;+ calculateLineTotal()" vertex="1">
+          <mxGeometry height="180" width="250" x="330" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="sale" parent="groupe2" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" value="Sale&#xa;--------------------&#xa;- id: Int&#xa;- patient_id: Int?&#xa;- total_amount: Decimal&#xa;- payment_method: String&#xa;- created_at: DateTime&#xa;--------------------&#xa;+ create()&#xa;+ calculateTotal()&#xa;+ addItem()" vertex="1">
+          <mxGeometry height="210" width="260" x="380" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="rel10" edge="1" parent="groupe2" source="sale" style="endArrow=diamondThin;endFill=1;html=1;rounded=0;" target="saleitem" value="1 → 0..* sale contents">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="patient" parent="groupe2" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" value="Patient&#xa;--------------------&#xa;- id: Int&#xa;--------------------&#xa;+ register()&#xa;+ placeOrder()" vertex="1">
+          <mxGeometry height="130" width="240" x="40" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="rel12" edge="1" parent="groupe2" source="patient" style="endArrow=classic;endFill=1;html=1;rounded=0;" target="sale" value="places">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel11" edge="1" parent="1" source="drug" style="endArrow=classic;endFill=1;html=1;rounded=0;" target="saleitem" value="references drug">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="API1 - MPD" id="api1-mpd">
+    <mxGraphModel dx="1800" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title5" value="API1 - MPD / Schéma physique" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=18;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="180" y="20" width="1040" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="groupe3" value="Tables de stock et agents" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#f3e5f5;strokeColor=#ab47bc;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="100" width="640" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="t8" value="agents&#xa;id PK&#xa;agent_name&#xa;agent_number UNIQUE&#xa;created_at" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="140" width="220" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="t9" value="drugs&#xa;id PK&#xa;name&#xa;dosage&#xa;form&#xa;buying_price&#xa;selling_price&#xa;stock_quantity&#xa;expiry_date" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="340" y="140" width="220" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="t10" value="amo_drugs&#xa;id PK&#xa;drug_id UNIQUE FK → drugs.id&#xa;reimbursement_rate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="320" width="220" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="groupe4" value="Tables de vente" style="swimlane;html=1;whiteSpace=wrap;rounded=1;fillColor=#ede7f6;strokeColor=#7e57c2;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="760" y="100" width="620" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="t11" value="patients&#xa;id PK" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="800" y="140" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="t12" value="sales&#xa;id PK&#xa;patient_id FK → patients.id&#xa;total_amount&#xa;payment_method&#xa;created_at" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="140" width="220" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="t13" value="sale_items&#xa;id PK&#xa;sale_id FK → sales.id&#xa;drug_id FK → drugs.id&#xa;quantity&#xa;unit_price" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="920" y="340" width="220" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="rel13" edge="1" parent="1" source="t9" target="t10" style="endArrow=classic;endFill=1;html=1;rounded=0;" value="FK drug_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel14" edge="1" parent="1" source="t11" target="t12" style="endArrow=classic;endFill=1;html=1;rounded=0;" value="FK patient_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel15" edge="1" parent="1" source="t12" target="t13" style="endArrow=classic;endFill=1;html=1;rounded=0;" value="FK sale_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel16" edge="1" parent="1" source="t9" target="t13" style="endArrow=classic;endFill=1;html=1;rounded=0;" value="FK drug_id">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

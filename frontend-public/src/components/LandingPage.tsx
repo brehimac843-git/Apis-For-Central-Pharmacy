@@ -15,23 +15,23 @@ export default function LandingPage({ onLoginClick, onSignupClick, onGetStartedC
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Logo size="sm" variant="light" showWordmark={false} />
-            <span className="text-2xl font-bold text-white">PharmaCare</span>
+            <span className="text-2xl font-bold text-white">PharmaHub</span>
           </div>
           <div className="flex gap-3">
-            <button
-              onClick={onLoginClick}
-              className="px-6 py-2 text-white hover:bg-white/10 rounded-lg transition font-semibold flex items-center gap-2"
-            >
-              <LogIn className="w-5 h-5" />
-              Login
-            </button>
-            <button
-              onClick={onSignupClick}
-              className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition font-semibold flex items-center gap-2"
-            >
-              <UserPlus className="w-5 h-5" />
-              Sign Up
-            </button>
+              <button
+                onClick={onLoginClick}
+                className="px-6 py-2 text-white hover:bg-white/10 rounded-lg transition font-semibold flex items-center gap-2"
+              >
+                <LogIn className="w-5 h-5" />
+                Connexion
+              </button>
+              <button
+                onClick={onSignupClick}
+                className="px-6 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition font-semibold flex items-center gap-2"
+              >
+                <UserPlus className="w-5 h-5" />
+                S'inscrire
+              </button>
           </div>
         </div>
       </nav>
@@ -42,12 +42,12 @@ export default function LandingPage({ onLoginClick, onSignupClick, onGetStartedC
           {/* Left Content */}
           <div className="space-y-8">
             <div>
-              <h1 className="text-5xl lg:text-6xl font-bold text-white mb-6">
-                Find Your Medications
-                <span className="text-primary-400"> Instantly</span>
+                <h1 className="text-5xl lg:text-6xl font-bold text-white mb-6">
+                Trouvez vos médicaments
+                <span className="text-primary-400"> instantanément</span>
               </h1>
               <p className="text-xl text-slate-200">
-                Locate nearby pharmacies, check real-time availability, and manage your health with confidence.
+                Trouvez les pharmacies proches, vérifiez la disponibilité en temps réel et gérez votre santé en toute confiance.
               </p>
             </div>
 
@@ -55,18 +55,18 @@ export default function LandingPage({ onLoginClick, onSignupClick, onGetStartedC
             <div className="space-y-4">
               <Feature
                 icon={<MapPin className="w-6 h-6" />}
-                title="Find Nearby Pharmacies"
-                description="Locate pharmacies near you with real-time stock information"
+                title="Trouver des pharmacies à proximité"
+                description="Localisez les pharmacies proches avec l'information de stock en temps réel"
               />
               <Feature
                 icon={<TrendingUp className="w-6 h-6" />}
-                title="Compare Availability"
-                description="See availability across multiple pharmacies"
+                title="Comparer la disponibilité"
+                description="Voir la disponibilité entre plusieurs pharmacies"
               />
               <Feature
                 icon={<Pill className="w-6 h-6" />}
-                title="Instant Search"
-                description="Search for medications and get instant results with availability"
+                title="Recherche instantanée"
+                description="Recherchez des médicaments et obtenez des résultats immédiats avec disponibilité"
               />
             </div>
 
@@ -76,14 +76,14 @@ export default function LandingPage({ onLoginClick, onSignupClick, onGetStartedC
                 onClick={onGetStartedClick || onSignupClick}
                 className="px-8 py-4 bg-primary-600 hover:bg-primary-700 text-white font-bold rounded-lg transition flex items-center gap-2 group"
               >
-                Get Started Free
+                Commencer gratuitement
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
               </button>
               <button
                 onClick={onLoginClick}
                 className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-bold rounded-lg transition border border-white/30"
               >
-                Sign In
+                Se connecter
               </button>
             </div>
           </div>
@@ -95,18 +95,18 @@ export default function LandingPage({ onLoginClick, onSignupClick, onGetStartedC
               <div className="relative bg-gradient-to-br from-primary-500 to-blue-600 rounded-3xl p-12 shadow-2xl">
                 <div className="space-y-6">
                   <div className="bg-white/20 backdrop-blur-md rounded-2xl p-4 border border-white/30">
-                    <div className="flex items-center gap-3 mb-3">
+                      <div className="flex items-center gap-3 mb-3">
                       <Pill className="w-6 h-6 text-primary-200" />
-                      <span className="text-white font-semibold">Quick Search</span>
+                      <span className="text-white font-semibold">Recherche rapide</span>
                     </div>
-                    <p className="text-white/80 text-sm">Find medications by name or condition</p>
+                    <p className="text-white/80 text-sm">Trouvez des médicaments par nom ou par symptôme</p>
                   </div>
                   <div className="bg-white/20 backdrop-blur-md rounded-2xl p-4 border border-white/30">
                     <div className="flex items-center gap-3 mb-3">
                       <MapPin className="w-6 h-6 text-primary-200" />
-                      <span className="text-white font-semibold">Locate Pharmacies</span>
+                      <span className="text-white font-semibold">Localiser les pharmacies</span>
                     </div>
-                    <p className="text-white/80 text-sm">View on interactive map</p>
+                    <p className="text-white/80 text-sm">Voir sur une carte interactive</p>
                   </div>
                   {/* Price comparison removed per request */}
                 </div>

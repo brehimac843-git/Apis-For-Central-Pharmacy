@@ -81,6 +81,7 @@ model PublicUser {
   email     String          @unique
   password  String          // Hashed password
   photo     String?         // Base64 data URL for profile photo
+  isActive  Boolean         @default(true)
   createdAt DateTime        @default(now())
   
   history   SearchHistory[] // Relation link to track historical search data

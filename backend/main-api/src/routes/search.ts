@@ -17,6 +17,10 @@ import {
   deleteAgent,
   listActivityLogs,
   getPharmacyStock,
+  listPublicUsers,
+  createPublicUser,
+  updatePublicUser,
+  deletePublicUser,
 } from "../controllers/adminController";
 import { prisma } from "../db";
 
@@ -94,6 +98,11 @@ router.get("/admin/agents", requireAuth, requireCentralAdmin, listAgents);
 router.post("/admin/agents", requireAuth, requireCentralAdmin, createAgent);
 router.put("/admin/agents/:id", requireAuth, requireCentralAdmin, updateAgent);
 router.delete("/admin/agents/:id", requireAuth, requireCentralAdmin, deleteAgent);
+
+router.get("/admin/users", requireAuth, requireCentralAdmin, listPublicUsers);
+router.post("/admin/users", requireAuth, requireCentralAdmin, createPublicUser);
+router.put("/admin/users/:id", requireAuth, requireCentralAdmin, updatePublicUser);
+router.delete("/admin/users/:id", requireAuth, requireCentralAdmin, deletePublicUser);
 
 router.get("/admin/activity-logs", requireAuth, requireCentralAdmin, listActivityLogs);
 router.get("/admin/stock/:id", requireAuth, requireCentralAdmin, getPharmacyStock);

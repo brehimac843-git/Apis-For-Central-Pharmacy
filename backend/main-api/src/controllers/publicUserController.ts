@@ -5,17 +5,31 @@ import { prisma } from "../db";
 
 const JWT_SECRET = process.env.JWT_SECRET || "super_secret_public_key_999";
 
+const getPublicUserByEmail = async (email: string) => {
+  return prisma.publicUser.findUnique({
+    where: { email: String(email).toLowerCase() },
+  });
+};
+
+const getPublicUserById = async (userId: string) => {
+  return prisma.publicUser.findUnique({
+    where: { id: userId },
+  });
+};
+
 function formatPublicUser(user: {
   id: string;
   name: string;
   email: string;
   photo: string | null;
+  isActive?: boolean;
 }) {
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     photo: user.photo ?? null,
+    isActive: user.isActive ?? true,
   };
 }
 
@@ -28,22 +42,24 @@ export async function registerPublicUser(req: Request, res: Response) {
       return res.status(400).json({ message: "All fields are required." });
     }
 
-    const existingUser = await prisma.publicUser.findUnique({ where: { email } });
+    const normalizedEmail = String(email).toLowerCase();
+    const existingUser = await getPublicUserByEmail(normalizedEmail);
     if (existingUser) {
       return res.status(400).json({ message: "An account with this email already exists." });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(String(password), 10);
+    const photoValue = typeof photo === "string" && photo.trim() ? photo.trim() : null;
 
     const newUser = await prisma.publicUser.create({
       data: {
-        name,
-        email,
+        name: String(name),
+        email: normalizedEmail,
         password: hashedPassword,
-        photo: typeof photo === "string" && photo.trim() ? photo.trim() : null,
+        photo: photoValue,
+        isActive: true,
       },
     });
-
     const token = jwt.sign({ userId: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: "7d" });
 
     return res.status(201).json({
@@ -65,12 +81,16 @@ export async function loginPublicUser(req: Request, res: Response) {
       return res.status(400).json({ message: "Email and password are required." });
     }
 
-    const user = await prisma.publicUser.findUnique({ where: { email } });
+    const user = await getPublicUserByEmail(String(email));
     if (!user) {
       return res.status(401).json({ message: "Invalid email or password credentials." });
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!user.isActive) {
+      return res.status(403).json({ message: "This account is inactive. Please contact an administrator." });
+    }
+
+    const isPasswordValid = await bcrypt.compare(String(password), user.password);
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid email or password credentials." });
     }
@@ -92,7 +112,7 @@ export async function verifyPublicUser(req: Request, res: Response) {
   try {
     const userId = (req as any).user?.userId;
 
-    const user = await prisma.publicUser.findUnique({ where: { id: userId } });
+    const user = await getPublicUserById(userId);
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }

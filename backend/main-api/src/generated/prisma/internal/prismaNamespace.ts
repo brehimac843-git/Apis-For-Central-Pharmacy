@@ -1033,6 +1033,7 @@ export const PublicUserScalarFieldEnum = {
   email: 'email',
   password: 'password',
   photo: 'photo',
+  isActive: 'isActive',
   createdAt: 'createdAt'
 } as const
 

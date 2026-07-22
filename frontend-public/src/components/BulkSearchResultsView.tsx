@@ -9,14 +9,14 @@ type Props = {
 }
 
 function rankLabel(index: number, pharmacy: ReturnType<typeof rankPharmaciesFromResults>[number], ranked: ReturnType<typeof rankPharmaciesFromResults>): string {
-  if (index === 0) return "Best match"
+  if (index === 0) return "Meilleure correspondance"
 
   const prev = ranked[index - 1]
   if (pharmacy.drugCount === prev.drugCount) {
     if (pharmacy.drugCount === pharmacy.totalDrugs) {
-      return `#${index + 1} · same full coverage`
+      return `#${index + 1} · même couverture complète`
     }
-    return `#${index + 1} · same coverage`
+    return `#${index + 1} · même couverture`
   }
 
   return `#${index + 1}`
@@ -34,7 +34,7 @@ function rankHint(
   if (pharmacy.drugCount !== prev.drugCount) return null
 
   if (prioritizeAmo && pharmacy.amoDrugCount !== prev.amoDrugCount) {
-    return "Ranked lower — fewer AMO-covered medications"
+    return "Classement inférieur — moins de médicaments couverts par l'AMO"
   }
 
   if (
@@ -42,10 +42,10 @@ function rankHint(
     prev.distanceKm != null &&
     pharmacy.distanceKm > prev.distanceKm
   ) {
-    return "Ranked lower — farther away"
+    return "Classement inférieur — plus éloignée"
   }
 
-  return "Ranked lower — higher total price"
+  return "Classement inférieur — prix total plus élevé"
 }
 
 export default function BulkSearchResultsView({ results, userLocation = null }: Props) {
@@ -59,11 +59,11 @@ export default function BulkSearchResultsView({ results, userLocation = null }: 
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl bg-green-50 border border-green-100 p-4">
           <p className="text-2xl font-bold text-green-700">{foundDrugCount}</p>
-          <p className="text-sm text-green-800">Medications found</p>
+          <p className="text-sm text-green-800">Médicaments trouvés</p>
         </div>
         <div className="rounded-2xl bg-red-50 border border-red-100 p-4">
           <p className="text-2xl font-bold text-red-700">{notFound.length}</p>
-          <p className="text-sm text-red-800">Not found</p>
+          <p className="text-sm text-red-800">Non trouvés</p>
         </div>
       </div>
 
@@ -76,9 +76,9 @@ export default function BulkSearchResultsView({ results, userLocation = null }: 
 
       {ranked.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">
-            Pharmacies ranked by coverage
-          </h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-3">
+              Pharmacies classées par couverture
+            </h3>
           <div className="space-y-3">
             {ranked.map((pharmacy, index) => {
               const hint = rankHint(index, pharmacy, ranked, results.prioritizeAmo)
@@ -105,7 +105,7 @@ export default function BulkSearchResultsView({ results, userLocation = null }: 
                       <p className="font-bold text-slate-900 text-lg">{pharmacy.pharmacy}</p>
                       <p className="text-sm text-slate-500">{pharmacy.city}</p>
                       <p className="text-sm font-semibold text-primary-700 mt-1">
-                        {pharmacy.drugCount} of {totalDrugs} medications available
+                        {pharmacy.drugCount} sur {totalDrugs} médicaments disponibles
                       </p>
                       {hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
                     </div>
@@ -141,14 +141,14 @@ export default function BulkSearchResultsView({ results, userLocation = null }: 
                         >
                           <span className="font-medium text-slate-900">{drug}</span>
                           <div className="text-right shrink-0">
-                            <p className="font-semibold text-slate-900">
-                              {pricing.fullPrice.toLocaleString()} FCFA
-                            </p>
-                            {pricing.amoPrice != null && (
-                              <p className="text-xs text-emerald-700">
-                                {pricing.amoPrice.toLocaleString()} with AMO
-                              </p>
-                            )}
+                                <p className="font-semibold text-slate-900">
+                                  {pricing.fullPrice.toLocaleString()} FCFA
+                                </p>
+                                {pricing.amoPrice != null && (
+                                  <p className="text-xs text-emerald-700">
+                                    {pricing.amoPrice.toLocaleString()} avec AMO
+                                  </p>
+                                )}
                           </div>
                         </div>
                       )
@@ -157,37 +157,37 @@ export default function BulkSearchResultsView({ results, userLocation = null }: 
 
                   <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
-                      <p className="text-xs uppercase tracking-wide text-slate-500">Bundle total</p>
+                      <p className="text-xs uppercase tracking-wide text-slate-500">Total du panier</p>
                       <p className="font-bold text-slate-900">
                         {pharmacy.totalFull.toLocaleString()} FCFA
                       </p>
                     </div>
                     <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2">
-                      <p className="text-xs uppercase tracking-wide text-emerald-700">With AMO</p>
+                      <p className="text-xs uppercase tracking-wide text-emerald-700">Avec AMO</p>
                       <p className="font-bold text-emerald-800">
                         {pharmacy.totalWithAmo.toLocaleString()} FCFA
                       </p>
                       {savings > 0 && (
                         <p className="text-xs text-emerald-600 mt-0.5">
-                          Save up to {savings.toLocaleString()} FCFA
+                          Économisez jusqu'à {savings.toLocaleString()} FCFA
                         </p>
                       )}
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() =>
-                      requestPharmacyDirections(
-                        { latitude: pharmacy.latitude, longitude: pharmacy.longitude },
-                        userLocation
-                      )
-                    }
-                    className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-3 text-white font-semibold hover:bg-primary-700 transition"
-                  >
-                    <Navigation className="w-4 h-4" />
-                    Get directions
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        requestPharmacyDirections(
+                          { latitude: pharmacy.latitude, longitude: pharmacy.longitude },
+                          userLocation
+                        )
+                      }
+                      className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary-600 px-4 py-3 text-white font-semibold hover:bg-primary-700 transition"
+                    >
+                      <Navigation className="w-4 h-4" />
+                      Itinéraire
+                    </button>
                 </div>
               )
             })}
