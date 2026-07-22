@@ -12,6 +12,10 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log("🌱 Starting database seeding...");
 
+  const api1Url = process.env.API1_URL || "http://localhost:3001";
+  const api2Url = process.env.API2_URL || "http://localhost:3002";
+  const api3Url = process.env.API3_URL || "http://localhost:3003";
+
   await pool.query("CREATE EXTENSION IF NOT EXISTS pg_trgm;");
 
   await prisma.searchHistory.deleteMany();
@@ -34,7 +38,7 @@ async function main() {
         latitude: 12.62,
         longitude: -7.99,
         amo_supported: true,
-        api_url: "http://localhost:3001",
+        api_url: api1Url,
       },
       {
         id: 2,
@@ -46,7 +50,7 @@ async function main() {
         latitude: 12.6392,
         longitude: -8.0029,
         amo_supported: true,
-        api_url: "http://localhost:3002",
+        api_url: api2Url,
       },
       {
         id: 3,
@@ -58,7 +62,7 @@ async function main() {
         latitude: 12.63,
         longitude: -8.015,
         amo_supported: true,
-        api_url: "http://localhost:3003",
+        api_url: api3Url,
       },
     ],
   });
