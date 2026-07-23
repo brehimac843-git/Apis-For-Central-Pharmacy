@@ -29,6 +29,15 @@ type AgentRecord = {
   pharmacyName: string;
 };
 
+type UserRecord = {
+  id: string;
+  name: string;
+  email: string;
+  photo: string | null;
+  isActive: boolean;
+  createdAt: string;
+};
+
 type ActivityEntry = {
   id: string;
   action: string;
@@ -37,6 +46,20 @@ type ActivityEntry = {
   createdAt: string;
   agentNumber: string;
   agentName: string;
+};
+
+type StockItem = {
+  id: number | string;
+  name: string;
+  stock_quantity: number;
+  selling_price: number | string;
+};
+
+type AdminProfile = {
+  id: string;
+  email: string;
+  name?: string;
+  role?: string;
 };
 
 type PharmacyFormState = {
@@ -58,9 +81,16 @@ type AgentFormState = {
   isActive: boolean;
 };
 
+type UserFormState = {
+  name: string;
+  email: string;
+  password: string;
+  isActive: boolean;
+};
+
 type Props = {
   token: string;
-  admin: any;
+  admin: AdminProfile | null;
   onLogout: () => void;
 };
 
@@ -83,40 +113,81 @@ const defaultAgentForm: AgentFormState = {
   isActive: true,
 };
 
+const defaultUserForm: UserFormState = {
+  name: "",
+  email: "",
+  password: "",
+  isActive: true,
+};
+
 export default function AdminDashboard({ token, admin, onLogout }: Props) {
-  const [view, setView] = useState<"overview" | "pharmacies" | "agents" | "activity">("overview");
+  const [view, setView] = useState<"overview" | "pharmacies" | "agents" | "users" | "activity">("overview");
   const [pharmacies, setPharmacies] = useState<PharmacyNode[]>([]);
   const [agents, setAgents] = useState<AgentRecord[]>([]);
+  const [users, setUsers] = useState<UserRecord[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityEntry[]>([]);
-  const [selectedPharmacyStock, setSelectedPharmacyStock] = useState<any[]>([]);
+  const [selectedPharmacyStock, setSelectedPharmacyStock] = useState<StockItem[]>([]);
   const [stockError, setStockError] = useState("");
   const [adminMessage, setAdminMessage] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [editingPharmacyId, setEditingPharmacyId] = useState<number | null>(null);
   const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [pharmacyForm, setPharmacyForm] = useState<PharmacyFormState>(defaultPharmacyForm);
   const [agentForm, setAgentForm] = useState<AgentFormState>(defaultAgentForm);
+  const [userForm, setUserForm] = useState<UserFormState>(defaultUserForm);
 
   const authHeader = { headers: { Authorization: `Bearer ${token}` } };
 
+  const getApiError = (error: unknown, fallback: string) => {
+    if (axios.isAxiosError(error)) {
+      return error.response?.data?.error || fallback;
+    }
+    if (error instanceof Error) {
+      return error.message;
+    }
+    return fallback;
+  };
+
   const refreshData = async () => {
     try {
-      const [pharmaciesRes, agentsRes, activityRes] = await Promise.all([
+      const [pharmaciesRes, agentsRes, usersRes, activityRes] = await Promise.all([
         axios.get(`${API_BASE}/api/admin/pharmacies`, authHeader),
         axios.get(`${API_BASE}/api/admin/agents`, authHeader),
+        axios.get(`${API_BASE}/api/admin/users`, authHeader),
         axios.get(`${API_BASE}/api/admin/activity-logs`, authHeader),
       ]);
       setPharmacies(Array.isArray(pharmaciesRes.data) ? pharmaciesRes.data : []);
       setAgents(Array.isArray(agentsRes.data) ? agentsRes.data : []);
+      setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
       setActivityLogs(Array.isArray(activityRes.data) ? activityRes.data : []);
-    } catch (err: any) {
-      console.error(err);
-      setAdminMessage(err.response?.data?.error || "Failed to load admin data.");
+    } catch (error: unknown) {
+      console.error(error);
+      setAdminMessage(getApiError(error, "Failed to load admin data."));
     }
   };
 
   useEffect(() => {
-    refreshData();
+    const loadData = async () => {
+      const authHeaderInsideEffect = { headers: { Authorization: `Bearer ${token}` } };
+      try {
+        const [pharmaciesRes, agentsRes, usersRes, activityRes] = await Promise.all([
+          axios.get(`${API_BASE}/api/admin/pharmacies`, authHeaderInsideEffect),
+          axios.get(`${API_BASE}/api/admin/agents`, authHeaderInsideEffect),
+          axios.get(`${API_BASE}/api/admin/users`, authHeaderInsideEffect),
+          axios.get(`${API_BASE}/api/admin/activity-logs`, authHeaderInsideEffect),
+        ]);
+        setPharmacies(Array.isArray(pharmaciesRes.data) ? pharmaciesRes.data : []);
+        setAgents(Array.isArray(agentsRes.data) ? agentsRes.data : []);
+        setUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
+        setActivityLogs(Array.isArray(activityRes.data) ? activityRes.data : []);
+      } catch (error: unknown) {
+        console.error(error);
+        setAdminMessage(getApiError(error, "Failed to load admin data."));
+      }
+    };
+
+    void loadData();
   }, [token]);
 
   const loadStockForPharmacy = async (id: number) => {
@@ -125,9 +196,9 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
       const res = await axios.get(`${API_BASE}/api/admin/stock/${id}`, authHeader);
       setSelectedPharmacyStock(res.data.stock || []);
       setView("pharmacies");
-    } catch (err: any) {
-      console.error(err);
-      setStockError(err.response?.data?.error || "Unable to load pharmacy stock.");
+    } catch (error: unknown) {
+      console.error(error);
+      setStockError(getApiError(error, "Unable to load pharmacy stock."));
       setSelectedPharmacyStock([]);
     }
   };
@@ -141,6 +212,12 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
   const clearAgentForm = () => {
     setEditingAgentId(null);
     setAgentForm(defaultAgentForm);
+    setAdminMessage("");
+  };
+
+  const clearUserForm = () => {
+    setEditingUserId(null);
+    setUserForm(defaultUserForm);
     setAdminMessage("");
   };
 
@@ -166,9 +243,9 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
 
       clearPharmacyForm();
       await refreshData();
-    } catch (err: any) {
-      console.error(err);
-      setAdminMessage("❌ " + (err.response?.data?.error || "Failed to save pharmacy."));
+    } catch (error: unknown) {
+      console.error(error);
+      setAdminMessage("❌ " + getApiError(error, "Failed to save pharmacy."));
     } finally {
       setActionLoading(false);
     }
@@ -208,9 +285,50 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
 
       clearAgentForm();
       await refreshData();
-    } catch (err: any) {
-      console.error(err);
-      setAdminMessage("❌ " + (err.response?.data?.error || "Failed to save agent."));
+    } catch (error: unknown) {
+      console.error(error);
+      setAdminMessage("❌ " + getApiError(error, "Failed to save agent."));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUserSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setActionLoading(true);
+    setAdminMessage("");
+
+    try {
+      const payload: Partial<UserFormState> = {
+        name: userForm.name,
+        email: userForm.email,
+        isActive: userForm.isActive,
+      };
+
+      if (!editingUserId) {
+        if (!userForm.name || !userForm.email || !userForm.password) {
+          setAdminMessage("❌ Name, email and password are required.");
+          setActionLoading(false);
+          return;
+        }
+        payload.password = userForm.password;
+      } else if (userForm.password.trim()) {
+        payload.password = userForm.password;
+      }
+
+      if (editingUserId) {
+        await axios.put(`${API_BASE}/api/admin/users/${editingUserId}`, payload, authHeader);
+        setAdminMessage("✅ User updated successfully.");
+      } else {
+        await axios.post(`${API_BASE}/api/admin/users`, payload, authHeader);
+        setAdminMessage("✅ User created successfully.");
+      }
+
+      clearUserForm();
+      await refreshData();
+    } catch (error: unknown) {
+      console.error(error);
+      setAdminMessage("❌ " + getApiError(error, "Failed to save user."));
     } finally {
       setActionLoading(false);
     }
@@ -243,9 +361,9 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
       await axios.delete(`${API_BASE}/api/admin/pharmacies/${id}`, authHeader);
       setAdminMessage("✅ Pharmacy removed successfully.");
       await refreshData();
-    } catch (err: any) {
-      console.error(err);
-      setAdminMessage("❌ " + (err.response?.data?.error || "Failed to delete pharmacy."));
+    } catch (error: unknown) {
+      console.error(error);
+      setAdminMessage("❌ " + getApiError(error, "Failed to delete pharmacy."));
     } finally {
       setActionLoading(false);
     }
@@ -273,9 +391,9 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
       const response = await axios.delete(`${API_BASE}/api/admin/agents/${id}`, authHeader);
       setAdminMessage(formatAgentResultMessage("Agent removed successfully.", response.data));
       await refreshData();
-    } catch (err: any) {
-      console.error(err);
-      setAdminMessage("❌ " + (err.response?.data?.error || "Failed to delete agent."));
+    } catch (error: unknown) {
+      console.error(error);
+      setAdminMessage("❌ " + getApiError(error, "Failed to delete agent."));
     } finally {
       setActionLoading(false);
     }
@@ -296,9 +414,57 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
         )
       );
       await refreshData();
-    } catch (err: any) {
-      console.error(err);
-      setAdminMessage("❌ " + (err.response?.data?.error || "Failed to update agent status."));
+    } catch (error: unknown) {
+      console.error(error);
+      setAdminMessage("❌ " + getApiError(error, "Failed to update agent status."));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUserEdit = (user: UserRecord) => {
+    setEditingUserId(user.id);
+    setUserForm({
+      name: user.name,
+      email: user.email,
+      password: "",
+      isActive: user.isActive,
+    });
+    setView("users");
+  };
+
+  const handleUserDelete = async (id: string) => {
+    if (!window.confirm("Delete this user account permanently?")) {
+      return;
+    }
+    setActionLoading(true);
+    setAdminMessage("");
+
+    try {
+      await axios.delete(`${API_BASE}/api/admin/users/${id}`, authHeader);
+      setAdminMessage("✅ User removed successfully.");
+      await refreshData();
+    } catch (error: unknown) {
+      console.error(error);
+      setAdminMessage("❌ " + getApiError(error, "Failed to delete user."));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUserToggleActive = async (user: UserRecord) => {
+    setActionLoading(true);
+    setAdminMessage("");
+
+    try {
+      await axios.put(`${API_BASE}/api/admin/users/${user.id}`, {
+        isActive: !user.isActive,
+      }, authHeader);
+      setAdminMessage(`✅ User ${user.email} is now ${user.isActive ? "inactive" : "active"}.`);
+      await refreshData();
+    } catch (error: unknown) {
+      console.error(error);
+      setAdminMessage("❌ " + getApiError(error, "Failed to update user status."));
     } finally {
       setActionLoading(false);
     }
@@ -310,22 +476,22 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-8">
           <div className="flex justify-between items-center gap-6 flex-wrap">
             <div>
-              <Logo subtitle="Admin console" />
-              <p className="text-slate-600 m-0 mt-3">Logged in as {admin?.email || "Administrator"}</p>
+              <Logo subtitle="Console administrateur" />
+              <p className="text-slate-600 m-0 mt-3">Connecté en tant que {admin?.email || "Administrateur"}</p>
             </div>
             <button
               onClick={onLogout}
               className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-full transition flex items-center gap-2"
             >
               <LogOut className="w-5 h-5" />
-              Logout
+              Se déconnecter
             </button>
           </div>
         </div>
 
         {/* Navigation Tabs */}
         <div className="flex gap-3 mb-8 flex-wrap">
-          {(["overview", "pharmacies", "agents", "activity"] as const).map((mode) => (
+          {(["overview", "pharmacies", "agents", "users", "activity"] as const).map((mode) => (
             <button
               key={mode}
               onClick={() => setView(mode)}
@@ -337,9 +503,9 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
             >
               {mode === "overview" && <LayoutDashboard className="w-5 h-5" />}
               {mode === "pharmacies" && <Store className="w-5 h-5" />}
-              {mode === "agents" && <Users className="w-5 h-5" />}
+              {(mode === "agents" || mode === "users") && <Users className="w-5 h-5" />}
               {mode === "activity" && <Activity className="w-5 h-5" />}
-              <span className="hidden sm:inline">{mode.charAt(0).toUpperCase() + mode.slice(1)}</span>
+              <span className="hidden sm:inline">{mode === 'overview' ? 'Aperçu' : mode === 'pharmacies' ? 'Pharmacies' : mode === 'agents' ? 'Agents' : mode === 'users' ? 'Utilisateurs' : 'Activité'}</span>
             </button>
           ))}
         </div>
@@ -359,11 +525,12 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
 
         {/* Overview */}
         {view === "overview" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
             <StatCard icon={<Store className="w-8 h-8" />} label="Pharmacies" value={pharmacies.length} color="bg-blue-600" />
             <StatCard icon={<Users className="w-8 h-8" />} label="Agents" value={agents.length} color="bg-purple-600" />
-            <StatCard icon={<Activity className="w-8 h-8" />} label="Recent Actions" value={activityLogs.length} color="bg-green-600" />
-            <StatCard icon={<ChevronDown className="w-8 h-8" />} label="Active Agents" value={agents.filter(a => a.isActive).length} color="bg-orange-600" />
+            <StatCard icon={<Users className="w-8 h-8" />} label="Utilisateurs" value={users.length} color="bg-indigo-600" />
+            <StatCard icon={<Activity className="w-8 h-8" />} label="Actions récentes" value={activityLogs.length} color="bg-green-600" />
+            <StatCard icon={<ChevronDown className="w-8 h-8" />} label="Agents actifs" value={agents.filter(a => a.isActive).length} color="bg-orange-600" />
           </div>
         )}
 
@@ -372,30 +539,30 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Form */}
             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">{editingPharmacyId ? "Edit Pharmacy" : "Add New Pharmacy"}</h2>
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">{editingPharmacyId ? "Modifier la pharmacie" : "Ajouter une pharmacie"}</h2>
               <form onSubmit={handlePharmacySubmit} className="space-y-4">
                 <input
                   value={pharmacyForm.name}
                   onChange={(e) => setPharmacyForm({ ...pharmacyForm, name: e.target.value })}
-                  placeholder="Name"
+                  placeholder="Nom"
                   className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <input
                   value={pharmacyForm.city}
                   onChange={(e) => setPharmacyForm({ ...pharmacyForm, city: e.target.value })}
-                  placeholder="City"
+                  placeholder="Ville"
                   className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <input
                   value={pharmacyForm.address}
                   onChange={(e) => setPharmacyForm({ ...pharmacyForm, address: e.target.value })}
-                  placeholder="Address"
+                  placeholder="Adresse"
                   className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <input
                   value={pharmacyForm.phone}
                   onChange={(e) => setPharmacyForm({ ...pharmacyForm, phone: e.target.value })}
-                  placeholder="Phone"
+                  placeholder="Téléphone"
                   className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <input
@@ -407,7 +574,7 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
                 <input
                   value={pharmacyForm.api_url}
                   onChange={(e) => setPharmacyForm({ ...pharmacyForm, api_url: e.target.value })}
-                  placeholder="API URL"
+                  placeholder="URL API"
                   className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <div className="grid grid-cols-2 gap-3">
@@ -431,7 +598,7 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
                     onChange={(e) => setPharmacyForm({ ...pharmacyForm, amo_supported: e.target.checked })}
                     className="w-4 h-4"
                   />
-                  AMO Supported
+                  AMO supportée
                 </label>
                 <div className="flex gap-3 pt-4">
                   <button 
@@ -439,7 +606,7 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
                     disabled={actionLoading} 
                     className="flex-1 px-4 py-3 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-semibold rounded-full transition"
                   >
-                    {editingPharmacyId ? "Save Changes" : "Create Pharmacy"}
+                    {editingPharmacyId ? "Enregistrer" : "Créer la pharmacie"}
                   </button>
                   {editingPharmacyId && (
                     <button
@@ -447,7 +614,7 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
                       onClick={clearPharmacyForm}
                       className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-full transition"
                     >
-                      Cancel
+                      Annuler
                     </button>
                   )}
                 </div>
@@ -456,7 +623,7 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
 
             {/* Pharmacies List */}
             <div className="lg:col-span-2 space-y-4">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">Pharmacy Registry ({pharmacies.length})</h2>
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">Registre des pharmacies ({pharmacies.length})</h2>
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {pharmacies.map((pharmacy) => (
                   <div key={pharmacy.id} className="bg-white p-4 rounded-xl border border-slate-200 hover:border-primary-300 transition shadow-sm">
@@ -464,27 +631,27 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
                       <div className="flex-1">
                         <h3 className="font-bold text-slate-900 text-lg">{pharmacy.name}</h3>
                         <p className="text-slate-500 text-sm mt-1">{pharmacy.city} • {pharmacy.address}</p>
-                        <p className="text-slate-500 text-sm mt-2">Agents: {pharmacy.agentCount} ({pharmacy.activeAgentCount} active)</p>
+                        <p className="text-slate-500 text-sm mt-2">Agents : {pharmacy.agentCount} ({pharmacy.activeAgentCount} actifs)</p>
                       </div>
                       <div className="flex gap-2 flex-wrap justify-end">
                         <button 
                           onClick={() => handlePharmacyEdit(pharmacy)} 
                           className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
-                          title="Edit"
+                          title="Modifier"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => loadStockForPharmacy(pharmacy.id)} 
                           className="p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition"
-                          title="View Stock"
+                          title="Voir le stock"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button 
                           onClick={() => handlePharmacyDelete(pharmacy.id)} 
                           className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition"
-                          title="Delete"
+                          title="Supprimer"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -503,19 +670,19 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
               {selectedPharmacyStock.length > 0 && (
                 <div className="mt-6 bg-white rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
                   <div className="p-4 border-b border-slate-100">
-                    <h3 className="font-bold text-slate-900 text-lg">Live Stock</h3>
+                    <h3 className="font-bold text-slate-900 text-lg">Stock en direct</h3>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
                         <tr className="text-left text-slate-500 border-b border-slate-100 text-sm bg-slate-50">
-                          <th className="px-4 py-2">Name</th>
-                          <th className="px-4 py-2">Quantity</th>
-                          <th className="px-4 py-2">Price</th>
+                          <th className="px-4 py-2">Nom</th>
+                          <th className="px-4 py-2">Quantité</th>
+                          <th className="px-4 py-2">Prix</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {selectedPharmacyStock.map((item: any) => (
+                        {selectedPharmacyStock.map((item: StockItem) => (
                           <tr key={item.id} className="border-b border-slate-100 text-slate-700 text-sm">
                             <td className="px-4 py-3">{item.name}</td>
                             <td className="px-4 py-3">{item.stock_quantity}</td>
@@ -536,18 +703,18 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Form */}
             <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">{editingAgentId ? "Edit Agent" : "Add New Agent"}</h2>
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">{editingAgentId ? "Modifier l'agent" : "Ajouter un agent"}</h2>
               <form onSubmit={handleAgentSubmit} className="space-y-4">
                 <input
                   value={agentForm.agentNumber}
                   onChange={(e) => setAgentForm({ ...agentForm, agentNumber: e.target.value })}
-                  placeholder="Agent Number"
+                  placeholder="Numéro d'agent"
                   className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <input
                   value={agentForm.name}
                   onChange={(e) => setAgentForm({ ...agentForm, name: e.target.value })}
-                  placeholder="Agent Name"
+                  placeholder="Nom de l'agent"
                   className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
                 <select
@@ -555,7 +722,7 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
                   onChange={(e) => setAgentForm({ ...agentForm, pharmacyId: e.target.value })}
                   className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
-                  <option value="">Select Pharmacy</option>
+                  <option value="">Sélectionner une pharmacie</option>
                   {pharmacies.map((pharmacy) => (
                     <option key={pharmacy.id} value={pharmacy.id}>{pharmacy.name}</option>
                   ))}
@@ -567,7 +734,7 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
                     onChange={(e) => setAgentForm({ ...agentForm, isActive: e.target.checked })}
                     className="w-4 h-4"
                   />
-                  Active Agent
+                  Agent actif
                 </label>
                 <div className="flex gap-3 pt-4">
                   <button 
@@ -575,7 +742,7 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
                     disabled={actionLoading} 
                     className="flex-1 px-4 py-3 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-semibold rounded-full transition"
                   >
-                    {editingAgentId ? "Save Agent" : "Create Agent"}
+                    {editingAgentId ? "Enregistrer l'agent" : "Créer l'agent"}
                   </button>
                   {editingAgentId && (
                     <button
@@ -583,7 +750,7 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
                       onClick={clearAgentForm}
                       className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-full transition"
                     >
-                      Cancel
+                      Annuler
                     </button>
                   )}
                 </div>
@@ -592,7 +759,7 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
 
             {/* Agents List */}
             <div className="lg:col-span-2">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">Agent Roster ({agents.length})</h2>
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">Liste des agents ({agents.length})</h2>
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {agents.map((agent) => (
                   <div
@@ -610,7 +777,7 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
                           <span className={`text-xs font-bold px-2 py-1 rounded-full ${
                             agent.isActive ? "bg-green-100 text-green-700" : "bg-slate-200 text-slate-600"
                           }`}>
-                            {agent.isActive ? "ACTIVE" : "INACTIVE"}
+                            {agent.isActive ? "ACTIF" : "INACTIF"}
                           </span>
                         </div>
                         <p className="text-slate-500 text-sm mt-1">#{agent.agentNumber} • {agent.pharmacyName}</p>
@@ -623,9 +790,9 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
                               ? "bg-orange-600 hover:bg-orange-700 text-white"
                               : "bg-green-600 hover:bg-green-700 text-white"
                           }`}
-                          title={agent.isActive ? "Deactivate" : "Activate"}
+                          title={agent.isActive ? "Désactiver" : "Activer"}
                         >
-                          {agent.isActive ? "OFF" : "ON"}
+                          {agent.isActive ? "Désactiver" : "Activer"}
                         </button>
                         <button 
                           onClick={() => handleAgentEdit(agent)} 
@@ -648,10 +815,123 @@ export default function AdminDashboard({ token, admin, onLogout }: Props) {
           </div>
         )}
 
+        {/* Users View */}
+        {view === "users" && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">{editingUserId ? "Modifier l'utilisateur" : "Ajouter un utilisateur"}</h2>
+              <form onSubmit={handleUserSubmit} className="space-y-4">
+                <input
+                  value={userForm.name}
+                  onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                  placeholder="Nom complet"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <input
+                  type="email"
+                  value={userForm.email}
+                  onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                  placeholder="Adresse email"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <input
+                  type="password"
+                  value={userForm.password}
+                  onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                  placeholder={editingUserId ? "Nouveau mot de passe (optionnel)" : "Mot de passe"}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white text-slate-900 border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <label className="flex gap-3 items-center text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={userForm.isActive}
+                    onChange={(e) => setUserForm({ ...userForm, isActive: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  Utilisateur actif
+                </label>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="submit"
+                    disabled={actionLoading}
+                    className="flex-1 px-4 py-3 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white font-semibold rounded-full transition"
+                  >
+                    {editingUserId ? "Enregistrer l'utilisateur" : "Créer l'utilisateur"}
+                  </button>
+                  {editingUserId && (
+                    <button
+                      type="button"
+                      onClick={clearUserForm}
+                      className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-full transition"
+                    >
+                      Annuler
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            <div className="lg:col-span-2">
+              <h2 className="text-2xl font-bold text-slate-900 mb-6">Liste des utilisateurs ({users.length})</h2>
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {users.map((user) => (
+                  <div
+                    key={user.id}
+                    className={`p-4 rounded-xl border transition shadow-sm ${
+                      user.isActive
+                        ? "bg-white border-slate-200 hover:border-primary-300"
+                        : "bg-slate-50 border-slate-200 opacity-80"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-slate-900 text-lg">{user.name}</h3>
+                          <span className={`text-xs font-bold px-2 py-1 rounded-full ${
+                            user.isActive ? "bg-green-100 text-green-700" : "bg-slate-200 text-slate-600"
+                          }`}>
+                            {user.isActive ? "ACTIF" : "INACTIF"}
+                          </span>
+                        </div>
+                        <p className="text-slate-500 text-sm mt-1">{user.email}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleUserToggleActive(user)}
+                          className={`p-2 rounded-lg transition ${
+                            user.isActive
+                              ? "bg-orange-600 hover:bg-orange-700 text-white"
+                              : "bg-green-600 hover:bg-green-700 text-white"
+                          }`}
+                          title={user.isActive ? "Désactiver" : "Activer"}
+                        >
+                          {user.isActive ? "Désactiver" : "Activer"}
+                        </button>
+                        <button
+                          onClick={() => handleUserEdit(user)}
+                          className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleUserDelete(user.id)}
+                          className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Activity View */}
         {view === "activity" && (
           <div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">Recent Agent Activity</h2>
+            <h2 className="text-2xl font-bold text-slate-900 mb-6">Activité récente des agents</h2>
             <div className="space-y-4">
               {activityLogs.map((entry) => (
                 <div key={entry.id} className="bg-white p-4 rounded-xl border border-slate-200 hover:border-primary-300 transition shadow-sm">

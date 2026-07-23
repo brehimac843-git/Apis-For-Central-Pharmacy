@@ -13,9 +13,23 @@ type LocalDrug = {
   selling_price: string;
 };
 
+type VisibilityRule = {
+  drugName?: string;
+  name?: string;
+};
+
+type AgentProfile = {
+  id: string;
+  agentNumber: string;
+  name: string;
+  pharmacyName?: string;
+  email?: string;
+  role?: string;
+};
+
 type Props = {
   token: string;
-  agent: any;
+  agent: AgentProfile | null;
   pharmacyId: number;
   nodeApiUrl: string;
   onLogout: () => void;
@@ -50,7 +64,7 @@ export default function AgentDashboard({ token, agent, pharmacyId, nodeApiUrl, o
         const primaryRecords = visibilityRes.data?.records || visibilityRes.data?.rules;
 
         if (Array.isArray(primaryRecords) && primaryRecords.length > 0) {
-          primaryRecords.forEach((rule: any) => {
+          primaryRecords.forEach((rule: VisibilityRule) => {
             const name = rule.drugName || rule.name;
             if (name) {
               hiddenNames.add(String(name).trim().toLowerCase());
@@ -59,15 +73,15 @@ export default function AgentDashboard({ token, agent, pharmacyId, nodeApiUrl, o
         } 
         // 🛡️ PRIORITY 2: Fallback handling if records don't exist
         else {
-          const fallbackList = Array.isArray(visibilityRes.data) 
-            ? visibilityRes.data 
+          const fallbackList: Array<string | number> = Array.isArray(visibilityRes.data)
+            ? visibilityRes.data
             : (visibilityRes.data?.hiddenIds || visibilityRes.data?.hiddenDrugs || []);
 
-          fallbackList.forEach((item: any) => {
+          fallbackList.forEach((item) => {
             if (typeof item === "string") {
               hiddenNames.add(item.trim().toLowerCase());
             } else if (typeof item === "number") {
-              const matchedDrug = localDrugs.find((d: any) => d.id === item);
+              const matchedDrug = localDrugs.find((d: LocalDrug) => d.id === item);
               if (matchedDrug) {
                 hiddenNames.add(matchedDrug.name.trim().toLowerCase());
               }
@@ -76,9 +90,15 @@ export default function AgentDashboard({ token, agent, pharmacyId, nodeApiUrl, o
         }
 
         setHiddenDrugNames(hiddenNames);
-      } catch (err: any) {
-        console.error("Dashboard payload mapping exception:", err);
-        setError(err.message || "Failed to load dashboard data");
+      } catch (error: unknown) {
+        console.error("Dashboard payload mapping exception:", error);
+        if (axios.isAxiosError(error)) {
+          setError(error.message || "Failed to load dashboard data");
+        } else if (error instanceof Error) {
+          setError(error.message);
+        } else {
+          setError("Failed to load dashboard data");
+        }
       } finally {
         setLoading(false);
       }
@@ -112,8 +132,8 @@ export default function AgentDashboard({ token, agent, pharmacyId, nodeApiUrl, o
         }
         return next;
       });
-    } catch (err) {
-      console.error(err);
+    } catch (error: unknown) {
+      console.error(error);
       setError("Failed to sync visibility modification states.");
     }
   };
@@ -127,7 +147,7 @@ export default function AgentDashboard({ token, agent, pharmacyId, nodeApiUrl, o
             <div>
               <Logo subtitle="Agent portal" />
               <p className="text-slate-600 m-0 mt-3">
-                Agent: <span className="font-semibold text-primary-600">{agent?.agentName || "Pharmacy Agent"}</span>
+                Agent: <span className="font-semibold text-primary-600">{agent?.name || "Pharmacy Agent"}</span>
                 {" · "}
                 Branch: <span className="font-semibold text-primary-600">{agent?.pharmacyName || `Node #${pharmacyId}`}</span>
               </p>

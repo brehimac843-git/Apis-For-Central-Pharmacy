@@ -10,7 +10,7 @@ import {
   saveBulkSearchHistory,
   deleteSearchHistoryItem,
   clearSearchHistory
-} from "../controllers/publicUserController";
+} from "../controllers/publicUserController.js";
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "super_secret_public_key_999";

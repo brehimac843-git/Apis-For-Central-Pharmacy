@@ -1,6 +1,6 @@
 import express, { json } from 'express';
 import cors from 'cors';
-import drugsRoutes from './routes/drugs/index';
+import drugsRoutes from './routes/drugs/index.js';
 
 const app = express();
 const port = process.env.PORT || 3001;

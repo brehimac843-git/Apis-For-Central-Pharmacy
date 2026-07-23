@@ -1,8 +1,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import searchRoutes from "./routes/search";
-import publicRoutes from "./routes/publicRoutes";
+import searchRoutes from "./routes/search.js";
+import publicRoutes from "./routes/publicRoutes.js";
 
 dotenv.config();
 

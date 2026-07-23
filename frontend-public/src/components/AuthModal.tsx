@@ -1,12 +1,20 @@
 import { useState } from "react"
 import { X, Mail, Lock, User, Upload } from "lucide-react"
 
+type AuthSubmitData = {
+  email: string
+  password: string
+  name?: string
+  surname?: string
+  photo?: File | null
+}
+
 type Props = {
   isOpen: boolean
   mode: "login" | "signup"
   onClose: () => void
   onSwitchMode: () => void
-  onSubmit: (data: any) => Promise<void>
+  onSubmit: (data: AuthSubmitData) => Promise<void>
   error?: string
   loading?: boolean
 }
@@ -23,7 +31,7 @@ export default function AuthModal({ isOpen, mode, onClose, onSwitchMode, onSubmi
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const submitData = {
+    const submitData: AuthSubmitData = {
       email: formData.email,
       password: formData.password,
       name: formData.name,
@@ -65,7 +73,7 @@ export default function AuthModal({ isOpen, mode, onClose, onSwitchMode, onSubmi
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-slate-900">
-            {mode === "login" ? "Welcome Back" : "Create Account"}
+            {mode === "login" ? "Bienvenue" : "Créer un compte"}
           </h2>
           <button
             onClick={onClose}
@@ -84,7 +92,7 @@ export default function AuthModal({ isOpen, mode, onClose, onSwitchMode, onSubmi
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   <div className="flex items-center gap-2">
                     <User className="w-4 h-4" />
-                    First Name
+                    Prénom
                   </div>
                 </label>
                 <input
@@ -97,7 +105,7 @@ export default function AuthModal({ isOpen, mode, onClose, onSwitchMode, onSubmi
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Last Name</label>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Nom de famille</label>
                 <input
                   type="text"
                   value={formData.surname}
@@ -113,7 +121,7 @@ export default function AuthModal({ isOpen, mode, onClose, onSwitchMode, onSubmi
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   <div className="flex items-center gap-2">
                     <Upload className="w-4 h-4" />
-                    Profile Photo (Optional)
+                    Photo de profil (optionnelle)
                   </div>
                 </label>
                 <div className="relative">
@@ -135,12 +143,12 @@ export default function AuthModal({ isOpen, mode, onClose, onSwitchMode, onSubmi
                           alt="Preview"
                           className="w-16 h-16 rounded-lg object-cover"
                         />
-                        <p className="text-xs text-slate-600">Click to change</p>
+                        <p className="text-xs text-slate-600">Cliquer pour changer</p>
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-2">
                         <Upload className="w-5 h-5 text-slate-400" />
-                        <p className="text-sm text-slate-600">Click to upload photo</p>
+                        <p className="text-sm text-slate-600">Cliquer pour télécharger une photo</p>
                       </div>
                     )}
                   </label>
@@ -152,9 +160,9 @@ export default function AuthModal({ isOpen, mode, onClose, onSwitchMode, onSubmi
           {/* Email */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4" />
-                Email Address
+                Adresse e-mail
               </div>
             </label>
             <input
@@ -170,9 +178,9 @@ export default function AuthModal({ isOpen, mode, onClose, onSwitchMode, onSubmi
           {/* Password */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
                 <Lock className="w-4 h-4" />
-                Password
+                Mot de passe
               </div>
             </label>
             <input
@@ -198,20 +206,20 @@ export default function AuthModal({ isOpen, mode, onClose, onSwitchMode, onSubmi
             disabled={loading}
             className="w-full px-4 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-slate-400 text-white font-semibold rounded-lg transition mt-6"
           >
-            {loading ? "Processing..." : mode === "login" ? "Sign In" : "Create Account"}
+            {loading ? "Traitement..." : mode === "login" ? "Se connecter" : "Créer un compte"}
           </button>
         </form>
 
         {/* Switch Mode */}
         <div className="mt-6 text-center border-t border-slate-200 pt-6">
           <p className="text-slate-600 text-sm">
-            {mode === "login" ? "Don't have an account?" : "Already have an account?"}
+            {mode === "login" ? "Vous n'avez pas de compte ?" : "Vous avez déjà un compte ?"}
             {" "}
             <button
               onClick={onSwitchMode}
               className="text-primary-600 hover:text-primary-700 font-semibold transition"
             >
-              {mode === "login" ? "Sign Up" : "Sign In"}
+              {mode === "login" ? "S'inscrire" : "Se connecter"}
             </button>
           </p>
         </div>

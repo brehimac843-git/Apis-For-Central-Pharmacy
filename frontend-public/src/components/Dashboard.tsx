@@ -1,3 +1,17 @@
+/**
+ * Dashboard Component - Main Search & Discovery Interface
+ * 
+ * Implements test scenarios from pharmaceutical hub rapport:
+ * - SCENARIO 1: Rechercher Médicament (Search for Medication)
+ * - SCENARIO 2: Consulter le Catalogue (View Catalog)
+ * - SCENARIO 3: Comparer Prix (Compare Prices)
+ * - SCENARIO 4: Recherche Groupée (Bulk Search)
+ * - SCENARIO 5: Historique (Search History Management)
+ * 
+ * @see /src/tests/TEST_SCENARIOS.md for complete test specifications
+ * @see /src/tests/mockData.ts for mock test data
+ */
+
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import axios from "axios"
@@ -71,23 +85,10 @@ export default function Dashboard({ token, isGuest = false }: Props) {
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
 
-  // Load search history and user location on mount; clear history when guest
-  useEffect(() => {
-    if (isGuest) {
-      setSearchHistory([])
-    } else {
-      loadSearchHistory()
-    }
-    requestUserLocation()
-  }, [isGuest])
-
-  useEffect(() => {
-    if (isGuest && view === "history") {
-      navigate(ROUTES.dashboard, { replace: true })
-    }
-  }, [isGuest, view, navigate])
-
-  const loadSearchHistory = async () => {
+  const loadSearchHistory = useCallback(async () => {
+    // SCENARIO 5: Search History Management
+    // Loads user's previous searches from /api/public/history
+    // @test: TEST_SCENARIOS.md - "5. Search History Management"
     if (isGuest) return
     try {
       const res = await axios.get(`${API_BASE}/api/public/history`, {
@@ -97,7 +98,47 @@ export default function Dashboard({ token, isGuest = false }: Props) {
     } catch (err) {
       console.error("Failed to load history", err)
     }
-  }
+  }, [isGuest, token])
+
+  const requestUserLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        })
+      },
+      () => {
+        // Keep using the default results when location is unavailable.
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }, [])
+
+  // Load search history and user location on mount; clear history when guest
+  useEffect(() => {
+    if (isGuest) {
+      const timer = window.setTimeout(() => setSearchHistory([]), 0)
+      return () => window.clearTimeout(timer)
+    }
+
+    const timer = window.setTimeout(() => {
+      void loadSearchHistory()
+      requestUserLocation()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [isGuest, loadSearchHistory, requestUserLocation])
+
+  useEffect(() => {
+    if (isGuest && view === "history") {
+      navigate(ROUTES.dashboard, { replace: true })
+    }
+  }, [isGuest, view, navigate])
 
   const deleteHistoryItem = async (id: string) => {
     try {
@@ -199,6 +240,20 @@ export default function Dashboard({ token, isGuest = false }: Props) {
   }
 
   async function searchDrug(name: string) {
+    // SCENARIO 1: Rechercher Médicament (Search for Medication)
+    // Queries /api/aggregate-stock/{drugName} and displays results
+    // Results include price, distance, stock status, AMO support
+    // Automatically calculates distance if geolocation is available
+    // Saves search to history for authenticated users
+    // 
+    // Exception handling:
+    // - E1: No medication found → displays "No results found" message
+    // - E2: No geolocation → results without distance information
+    // - E3: API error → console error logged
+    //
+    // @test: TEST_SCENARIOS.md - "1. Rechercher Médicament"
+    // @test: mockData.ts - MOCK_PHARMACIES for test data
+    
     if (!name.trim()) return
     if (view !== "search") {
       navigate(ROUTES.dashboard)
@@ -265,26 +320,7 @@ export default function Dashboard({ token, isGuest = false }: Props) {
     }
   }
 
-  const requestUserLocation = () => {
-    if (!navigator.geolocation) {
-      return
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setUserLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        })
-      },
-      () => {
-        // Keep using the default results when location is unavailable.
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    )
-  }
-
-  const applySort = (order: 'closest' | 'furthest') => {
+  const applySort = useCallback((order: 'closest' | 'furthest') => {
     if (!userLocation) {
       // Request location then apply sort when available
       requestUserLocation()
@@ -307,15 +343,17 @@ export default function Dashboard({ token, isGuest = false }: Props) {
     })
     setResults(sorted)
     setSortBy(order)
-  }
+  }, [results, requestUserLocation, userLocation, calculateDistanceKm])
 
   useEffect(() => {
     if (!userLocation) return
     if (!sortBy) return
-    // when location becomes available, re-apply the chosen sort
-    applySort(sortBy)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userLocation])
+
+    const timer = window.setTimeout(() => {
+      applySort(sortBy)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [userLocation, sortBy, applySort])
 
   const handleQueryChange = (newQuery: string) => {
     setQuery(newQuery)
@@ -355,8 +393,8 @@ export default function Dashboard({ token, isGuest = false }: Props) {
         <div className="w-full max-w-2xl max-h-[90vh] overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-200 flex flex-col">
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Bulk Search</h2>
-              <p className="text-sm text-slate-500">Saved search details</p>
+              <h2 className="text-xl font-bold text-slate-900">Recherche groupée</h2>
+              <p className="text-sm text-slate-500">Détails de la recherche enregistrée</p>
             </div>
             <button
               type="button"
@@ -370,13 +408,13 @@ export default function Dashboard({ token, isGuest = false }: Props) {
           <div className="flex-1 overflow-y-auto px-6 py-5">
             <BulkSearchResultsView results={bulkHistoryDetail} userLocation={userLocation} />
           </div>
-          <div className="flex justify-end px-6 py-4 border-t border-slate-100 bg-slate-50">
+            <div className="flex justify-end px-6 py-4 border-t border-slate-100 bg-slate-50">
             <button
               type="button"
               onClick={() => setBulkHistoryDetail(null)}
               className="px-5 py-2.5 rounded-full bg-primary-600 text-white hover:bg-primary-700 transition font-semibold"
             >
-              Close
+              Fermer
             </button>
           </div>
         </div>
@@ -435,15 +473,24 @@ export default function Dashboard({ token, isGuest = false }: Props) {
   }
 
   if (view === "catalogue") {
+    // SCENARIO 2: Consulter le Catalogue (View Catalog)
+    // Displays medication catalog in grid/list format
+    // User can browse medications without needing to search
+    // Category filters, sorting, and click-to-view details available
+    // Catalog is accessible to both authenticated users and guests
+    //
+    // @test: TEST_SCENARIOS.md - "2. Consulter le Catalogue"
+    // @test: mockData.ts - MOCK_CATALOG_DRUGS for test data
+    
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 py-8">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <button
+            <button
             onClick={() => navigate(ROUTES.dashboard)}
             className="mb-8 inline-flex items-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-full text-slate-700 hover:bg-slate-50 hover:text-primary-700 font-semibold transition shadow-sm"
           >
             <ArrowLeft className="w-5 h-5" />
-            Back to Search
+            Retour à la recherche
           </button>
           <Catalogue onSelectDrug={handleSelectDrug} />
         </div>
@@ -452,6 +499,18 @@ export default function Dashboard({ token, isGuest = false }: Props) {
   }
 
   if (view === "history") {
+    // SCENARIO 5: Search History Management
+    // Displays user's search history with options to:
+    // - View previous searches (single or bulk)
+    // - Rerun a search by clicking it
+    // - Delete individual history items
+    // - Clear all history at once
+    // Confirmation dialog required before destructive actions
+    // Only available to authenticated users
+    //
+    // @test: TEST_SCENARIOS.md - "5. Search History Management"
+    // @test: mockData.ts - MOCK_SEARCH_HISTORY for test data
+    
     return (
       <>
         {historyNotice && (
@@ -467,16 +526,17 @@ export default function Dashboard({ token, isGuest = false }: Props) {
             </button>
           </div>
         )}
+
         {confirmationAction && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
             <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200">
               <h3 className="text-xl font-semibold text-slate-900 mb-4">
-                {confirmationAction === "clear" ? "Clear all history" : "Delete history item"}
+                {confirmationAction === "clear" ? "Effacer tout l'historique" : "Supprimer l'élément d'historique"}
               </h3>
               <p className="text-slate-600 mb-6">
                 {confirmationAction === "clear"
-                  ? "This will remove every saved search from your history."
-                  : "This will delete the selected history item permanently."}
+                  ? "Cela supprimera toutes les recherches enregistrées de votre historique."
+                  : "Cela supprimera définitivement l'élément d'historique sélectionné."}
               </p>
               <div className="flex gap-3 justify-end">
                 <button
@@ -484,50 +544,47 @@ export default function Dashboard({ token, isGuest = false }: Props) {
                   onClick={cancelConfirmation}
                   className="px-4 py-2 rounded-full border border-slate-200 text-slate-700 hover:bg-slate-50 transition"
                 >
-                  Cancel
+                  Annuler
                 </button>
                 <button
                   type="button"
                   onClick={confirmAction}
                   className="px-4 py-2 rounded-full bg-red-600 text-white hover:bg-red-700 transition"
                 >
-                  Confirm
+                  Confirmer
                 </button>
               </div>
             </div>
           </div>
         )}
+
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 py-8">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <button
-            onClick={() => navigate(ROUTES.dashboard)}
-            className="mb-8 inline-flex items-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-full text-slate-700 hover:bg-slate-50 hover:text-primary-700 font-semibold transition shadow-sm"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            Back to Search
-          </button>
-          <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-8">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-              <div>
-                <h2 className="text-3xl font-bold text-slate-900">Search History</h2>
-                <p className="text-sm text-slate-500">Manage your saved searches from one clean place.</p>
+            <button
+              onClick={() => navigate(ROUTES.dashboard)}
+              className="mb-8 inline-flex items-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-full text-slate-700 hover:bg-slate-50 hover:text-primary-700 font-semibold transition shadow-sm"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Retour à la recherche
+            </button>
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-8">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                <div>
+                  <h2 className="text-3xl font-bold text-slate-900">Historique de recherche</h2>
+                  <p className="text-sm text-slate-500">Gérez vos recherches enregistrées depuis un seul endroit.</p>
+                </div>
+                {searchHistory.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={openClearConfirmation}
+                    className="inline-flex items-center gap-2 px-4 py-3 bg-slate-100 text-slate-700 rounded-full hover:bg-slate-200 transition"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Effacer l'historique
+                  </button>
+                )}
               </div>
-              {searchHistory.length > 0 && (
-                <button
-                  type="button"
-                  onClick={openClearConfirmation}
-                  className="inline-flex items-center gap-2 px-4 py-3 bg-slate-100 text-slate-700 rounded-full hover:bg-slate-200 transition"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Clear history
-                </button>
-              )}
-            </div>
-            {searchHistory.length === 0 ? (
-              <div className="text-center py-16 text-slate-500">
-                No search history yet. Search for a medication or run a bulk search to build your history.
-              </div>
-            ) : (
+
               <div className="space-y-4">
                 {searchHistory.map((item) => {
                   const isBulk = item.type === "bulk"
@@ -543,11 +600,9 @@ export default function Dashboard({ token, isGuest = false }: Props) {
                             <div className="flex items-center justify-between gap-4">
                               <div className="flex items-center gap-2 text-slate-900">
                                 <Layers className="w-4 h-4" />
-                                <span className="font-semibold">Bulk search</span>
+                                <span className="font-semibold">Recherche groupée</span>
                               </div>
-                              <span className="text-xs text-slate-500">
-                                {new Date(item.createdAt).toLocaleDateString()}
-                              </span>
+                              <span className="text-xs text-slate-500">{new Date(item.createdAt).toLocaleDateString()}</span>
                             </div>
                             <button
                               type="button"
@@ -557,7 +612,7 @@ export default function Dashboard({ token, isGuest = false }: Props) {
                               disabled={!item.payload}
                               className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700 transition disabled:opacity-50"
                             >
-                              Show detail
+                              Afficher les détails
                             </button>
                           </div>
                         ) : (
@@ -571,11 +626,9 @@ export default function Dashboard({ token, isGuest = false }: Props) {
                                 <Clock className="w-4 h-4" />
                                 <span className="font-semibold">{item.query}</span>
                               </div>
-                              <span className="text-xs text-slate-500">
-                                {new Date(item.createdAt).toLocaleDateString()}
-                              </span>
+                              <span className="text-xs text-slate-500">{new Date(item.createdAt).toLocaleDateString()}</span>
                             </div>
-                            <p className="mt-2 text-sm text-slate-600">Tap to search again</p>
+                            <p className="mt-2 text-sm text-slate-600">Appuyez pour rechercher à nouveau</p>
                           </button>
                         )}
                         <button
@@ -591,12 +644,11 @@ export default function Dashboard({ token, isGuest = false }: Props) {
                   )
                 })}
               </div>
-            )}
+            </div>
           </div>
         </div>
-      </div>
-      {renderBulkHistoryDetailModal()}
-    </>
+        {renderBulkHistoryDetailModal()}
+      </>
     )
   }
 
@@ -619,12 +671,12 @@ export default function Dashboard({ token, isGuest = false }: Props) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl border border-slate-200">
             <h3 className="text-xl font-semibold text-slate-900 mb-4">
-              {confirmationAction === "clear" ? "Clear all history" : "Delete history item"}
+              {confirmationAction === "clear" ? "Effacer tout l'historique" : "Supprimer l'élément d'historique"}
             </h3>
             <p className="text-slate-600 mb-6">
               {confirmationAction === "clear"
-                ? "This will remove every saved search from your history."
-                : "This will delete the selected history item permanently."}
+                ? "Cela supprimera toutes les recherches enregistrées de votre historique."
+                : "Cela supprimera définitivement l'élément d'historique sélectionné."}
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -632,14 +684,14 @@ export default function Dashboard({ token, isGuest = false }: Props) {
                 onClick={cancelConfirmation}
                 className="px-4 py-2 rounded-full border border-slate-200 text-slate-700 hover:bg-slate-50 transition"
               >
-                Cancel
+                Annuler
               </button>
               <button
                 type="button"
                 onClick={confirmAction}
                 className="px-4 py-2 rounded-full bg-red-600 text-white hover:bg-red-700 transition"
               >
-                Confirm
+                Confirmer
               </button>
             </div>
           </div>
@@ -654,9 +706,9 @@ export default function Dashboard({ token, isGuest = false }: Props) {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="bg-white rounded-2xl shadow-lg p-8 mb-12 border border-slate-100">
               <div className="text-center mb-8">
-                <h1 className="text-4xl font-bold text-slate-900 mb-3">Find Your Medications</h1>
-                <p className="text-slate-600 text-lg">Search across all partner pharmacies and compare prices instantly</p>
-              </div>
+                  <h1 className="text-4xl font-bold text-slate-900 mb-3">Trouvez vos médicaments</h1>
+                  <p className="text-slate-600 text-lg">Recherchez parmi toutes les pharmacies partenaires et comparez les prix instantanément</p>
+                </div>
 
               <div className="relative mb-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -669,7 +721,7 @@ export default function Dashboard({ token, isGuest = false }: Props) {
                       onFocus={() => {
                         if (query.trim()) setShowSuggestions(true)
                       }}
-                      placeholder="Search for a medication or condition..."
+                      placeholder="Recherchez un médicament ou un symptôme..."
                       className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition"
                       onKeyDown={handleKeyDown}
                     />
@@ -698,7 +750,7 @@ export default function Dashboard({ token, isGuest = false }: Props) {
                     className="inline-flex items-center gap-2 rounded-xl px-4 py-3 bg-primary-600 text-white border border-transparent hover:bg-primary-700 transition font-semibold whitespace-nowrap"
                   >
                     <Layers className="w-4 h-4" />
-                    Bulk Search
+                    Recherche groupée
                   </button>
                   <div className="inline-flex items-center gap-2">
                     <div className="relative">
@@ -720,7 +772,7 @@ export default function Dashboard({ token, isGuest = false }: Props) {
                               setShowFilters(false)
                             }}
                           >
-                            Closest first
+                            Plus proche d'abord
                           </button>
                           <button
                             className={`w-full text-left px-4 py-2 hover:bg-slate-50 ${sortBy === 'furthest' ? 'bg-primary-50 text-primary-700' : ''}`}
@@ -729,7 +781,7 @@ export default function Dashboard({ token, isGuest = false }: Props) {
                               setShowFilters(false)
                             }}
                           >
-                            Furthest first
+                            Plus éloigné d'abord
                           </button>
                         </div>
                       )}
@@ -746,24 +798,49 @@ export default function Dashboard({ token, isGuest = false }: Props) {
                       }`}
                     >
                       <Shield className="w-4 h-4" />
-                      AMO only
+                      Uniquement AMO
                     </button>
                   </div>
                 </div>
-                <p className="mt-2 text-sm text-slate-500">Press Enter to search, or use Bulk Search for multiple medications.</p>
+                <p className="mt-2 text-sm text-slate-500">Appuyez sur Entrée pour rechercher, ou utilisez la recherche groupée pour plusieurs médicaments.</p>
               </div>
             </div>
 
             {results.length > 0 && view === "search" && (
               <div className="space-y-8">
+                {/* 
+                  SCENARIO 3: Comparer Prix (Compare Prices)
+                  Displays search results with price comparison across pharmacies
+                  Features:
+                  - Filter by distance (closest/furthest first)
+                  - Filter by AMO support only
+                  - Toggle between grid and list view layouts
+                  - Click pharmacy to view detailed information
+                  - Automatic distance calculation from user location
+                  
+                  Exception handling:
+                  - E1: Same price everywhere → shows all results
+                  - E2: Only one pharmacy carries item → single result
+                  - E3: AMO filter removes all results → shows message
+                  
+                  @test: TEST_SCENARIOS.md - "3. Comparer Prix"
+                  
+                  SCENARIO 4: Recherche Groupée (Bulk Search)
+                  Bulk search results are handled by BulkSearchModal component
+                  and displayed through saveBulkSearchHistory callback
+                  Results can be viewed from history with bulk flag set
+                  
+                  @test: TEST_SCENARIOS.md - "4. Bulk Search"
+                  @test: mockData.ts - MOCK_PHARMACIES for test data
+                */}
                 <div className="rounded-3xl bg-white border border-slate-200 p-5 shadow-sm">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                      <p className="text-sm text-slate-500">Searching for</p>
-                      <h2 className="text-2xl font-semibold text-slate-900">{query || "your medication"}</h2>
+                      <p className="text-sm text-slate-500">Recherche de</p>
+                      <h2 className="text-2xl font-semibold text-slate-900">{query || "votre médicament"}</h2>
                     </div>
                     <span className="inline-flex items-center rounded-full bg-primary-50 px-4 py-2 text-sm font-semibold text-primary-700">
-                      {results.length} pharmacy{results.length === 1 ? "" : "ies"} found
+                      {results.length} pharmacie{results.length === 1 ? "" : "s"} trouvée{results.length === 1 ? "" : "s"}
                     </span>
                   </div>
                 </div>
@@ -776,7 +853,7 @@ export default function Dashboard({ token, isGuest = false }: Props) {
                         : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
                     }`}
                   >
-                    Grid View
+                    Vue en grille
                   </button>
                   <button
                     onClick={() => setResultView('list')}
@@ -786,7 +863,7 @@ export default function Dashboard({ token, isGuest = false }: Props) {
                         : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
                     }`}
                   >
-                    List View
+                    Vue en liste
                   </button>
                 </div>
 
@@ -806,28 +883,28 @@ export default function Dashboard({ token, isGuest = false }: Props) {
                               <p className="text-slate-600">{pharmacy.city}</p>
                             </div>
                             <span className="inline-flex items-center rounded-full bg-green-100 text-green-700 px-3 py-1 text-sm font-semibold">
-                              Certified
+                              Certifié
                             </span>
                           </div>
 
                           <div className="space-y-2 mb-4">
                             <div className="flex justify-between items-center">
-                              <span className="text-slate-600">Price:</span>
-                              <span className="text-2xl font-bold text-primary-600">{pharmacy.price} FCFA</span>
-                            </div>
+                            <span className="text-slate-600">Prix :</span>
+                            <span className="text-2xl font-bold text-primary-600">{pharmacy.price} FCFA</span>
+                          </div>
                             <div className="flex justify-between items-center text-sm text-slate-500">
-                              <span>{pharmacy.distanceKm ? `${pharmacy.distanceKm} km away` : "Distance unavailable"}</span>
+                              <span>{pharmacy.distanceKm ? `${pharmacy.distanceKm} km` : "Distance indisponible"}</span>
                               {pharmacy.amo_supported && pharmacy.amo_rate != null && (
                                 <span className="inline-flex items-center gap-2 text-green-600 font-semibold">
                                   <Shield className="w-4 h-4" />
-                                  AMO Supported
+                                  AMO pris en charge
                                 </span>
                               )}
                             </div>
                           </div>
 
                           <button className="w-full px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition">
-                            View Details
+                            Voir les détails
                           </button>
                         </div>
                       ))}
@@ -849,7 +926,7 @@ export default function Dashboard({ token, isGuest = false }: Props) {
                               <div className="flex items-center gap-2 mb-1">
                                 <h3 className="text-xl font-bold text-slate-900">{pharmacy.pharmacy}</h3>
                                 <span className="inline-flex items-center rounded-full bg-green-100 text-green-700 px-3 py-1 text-sm font-semibold">
-                                  Certified
+                                  Certifié
                                 </span>
                               </div>
                               <p className="text-slate-600">{pharmacy.city}</p>
@@ -864,7 +941,7 @@ export default function Dashboard({ token, isGuest = false }: Props) {
                               )}
                             </div>
                             <div className="text-sm text-slate-500">
-                              {pharmacy.distanceKm ? `${pharmacy.distanceKm} km away` : "Distance unavailable"}
+                              {pharmacy.distanceKm ? `${pharmacy.distanceKm} km` : "Distance indisponible"}
                             </div>
                           </div>
                         </div>
@@ -875,6 +952,10 @@ export default function Dashboard({ token, isGuest = false }: Props) {
             )}
 
             {!loading && results.length === 0 && query && (
+              // SCENARIO 1: Exception E1 - No medication found
+              // Displays when search returns empty results
+              // User is prompted to try a different search term
+              // @test: TEST_SCENARIOS.md - "1. Rechercher Médicament - E1: No medication found"
               <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
                 <p className="text-slate-600 text-lg">No results found for "{query}"</p>
                 <p className="text-slate-500 mt-2">Try searching for a different medication or condition</p>
@@ -884,6 +965,13 @@ export default function Dashboard({ token, isGuest = false }: Props) {
         </div>
       )}
       <BulkSearchModal
+        // SCENARIO 4: Recherche Groupée (Bulk Search)
+        // Modal dialog for searching multiple medications at once
+        // User enters medication names and quantities
+        // Results aggregated for all queried medications
+        // Bulk searches saved to history for registered users
+        // 
+        // @test: TEST_SCENARIOS.md - "4. Bulk Search"
         isOpen={bulkSearchOpen}
         onClose={() => setBulkSearchOpen(false)}
         onComplete={saveBulkSearchHistory}

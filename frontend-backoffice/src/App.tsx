@@ -10,6 +10,23 @@ import AdminDashboard from "./components/AdminDashboard"
 import Logo from "./components/Logo"
 import { API_BASE } from "./config"
 
+type AgentProfile = {
+  id: string
+  agentNumber: string
+  name: string
+  pharmacyId?: number
+  pharmacyName?: string
+  email?: string
+  role?: string
+}
+
+type AdminProfile = {
+  id: string
+  email: string
+  name?: string
+  role?: string
+}
+
 type Pharmacy = {
   pharmacy: string
   city: string
@@ -29,7 +46,7 @@ function App() {
   })
 
   const [agentToken, setAgentToken] = useState<string | null>(localStorage.getItem("agent_token"))
-  const [activeAgent, setActiveAgent] = useState<any>(() => {
+  const [activeAgent, setActiveAgent] = useState<AgentProfile | null>(() => {
     try {
       return JSON.parse(localStorage.getItem("agent_profile") || "null")
     } catch {
@@ -43,7 +60,7 @@ function App() {
     localStorage.getItem("agent_node_api_url") || ""
   )
   const [adminToken, setAdminToken] = useState<string | null>(localStorage.getItem("admin_token"))
-  const [activeAdmin, setActiveAdmin] = useState<any>(() => {
+  const [activeAdmin, setActiveAdmin] = useState<AdminProfile | null>(() => {
     try {
       return JSON.parse(localStorage.getItem("admin_profile") || "null")
     } catch {
@@ -143,7 +160,7 @@ function App() {
       return 0
     })
 
-  const handleLoginSuccess = (token: string, agent: any, pharmacyId: number, nodeApiUrl: string) => {
+  const handleLoginSuccess = (token: string, agent: AgentProfile, pharmacyId: number, nodeApiUrl: string) => {
     localStorage.setItem("agent_token", token)
     localStorage.setItem("agent_profile", JSON.stringify(agent))
     localStorage.setItem("agent_pharmacy_id", String(pharmacyId))
@@ -155,7 +172,7 @@ function App() {
     setViewMode('dashboard')
   }
 
-  const handleAdminLoginSuccess = (token: string, admin: any) => {
+  const handleAdminLoginSuccess = (token: string, admin: AdminProfile) => {
     localStorage.setItem("admin_token", token)
     localStorage.setItem("admin_profile", JSON.stringify(admin))
     setAdminToken(token)

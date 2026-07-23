@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom"
 import axios from "axios"
 import { API_BASE } from "./config"
@@ -11,6 +11,22 @@ import "./App.css"
 
 type AuthMode = "none" | "login" | "signup"
 
+type PublicUser = {
+  guest?: boolean
+  name?: string
+  surname?: string
+  email?: string
+  photo?: string
+}
+
+type AuthSubmitData = {
+  email: string
+  password: string
+  name?: string
+  surname?: string
+  photo?: File | null
+}
+
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -20,7 +36,7 @@ function fileToBase64(file: File): Promise<string> {
   })
 }
 
-function persistUser(user: any) {
+function persistUser(user: PublicUser) {
   localStorage.setItem("public_user", JSON.stringify(user))
 }
 
@@ -31,10 +47,10 @@ function App() {
   const [publicToken, setPublicToken] = useState<string | null>(() => {
     return localStorage.getItem("public_token")
   })
-  const [publicUser, setPublicUser] = useState<any>(() => {
+  const [publicUser, setPublicUser] = useState<PublicUser | null>(() => {
     try {
       const user = localStorage.getItem("public_user")
-      return user ? JSON.parse(user) : null
+      return user ? (JSON.parse(user) as PublicUser) : null
     } catch {
       return null
     }
@@ -47,27 +63,6 @@ function App() {
   const [authLoading, setAuthLoading] = useState(false)
 
   const hasAppAccess = !!(publicToken && publicUser)
-
-  // Check if user is already logged in on mount
-  useEffect(() => {
-    if (publicToken && publicUser && publicToken !== "guest") {
-      verifyToken()
-    }
-  }, [])
-
-  const verifyToken = async () => {
-    try {
-      const res = await axios.get(`${API_BASE}/api/public/verify`, {
-        headers: { Authorization: `Bearer ${publicToken}` },
-      })
-      if (res.data?.user) {
-        setPublicUser(res.data.user)
-        persistUser(res.data.user)
-      }
-    } catch (err) {
-      logout()
-    }
-  }
 
   const handleLogin = async (data: { email: string; password: string }) => {
     setAuthError("")
@@ -88,14 +83,18 @@ function App() {
       setPublicUser(user)
       setAuthModalOpen(false)
       setAuthError("")
-    } catch (err: any) {
-      setAuthError(err.response?.data?.error || "Login failed. Please try again.")
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        setAuthError(error.response?.data?.error || "Login failed. Please try again.")
+      } else {
+        setAuthError("Login failed. Please try again.")
+      }
     } finally {
       setAuthLoading(false)
     }
   }
 
-  const handleSignup = async (data: { email: string; password: string; name: string; surname: string; photo?: File | null }) => {
+  const handleSignup = async (data: AuthSubmitData) => {
     setAuthError("")
     setAuthLoading(true)
 
@@ -117,14 +116,18 @@ function App() {
       setPublicUser(user)
       setAuthModalOpen(false)
       setAuthError("")
-    } catch (err: any) {
-      setAuthError(err.response?.data?.error || "Signup failed. Please try again.")
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error)) {
+        setAuthError(error.response?.data?.error || "Signup failed. Please try again.")
+      } else {
+        setAuthError("Signup failed. Please try again.")
+      }
     } finally {
       setAuthLoading(false)
     }
   }
 
-  const handleAuthSubmit = async (data: any) => {
+  const handleAuthSubmit = async (data: AuthSubmitData) => {
     if (authMode === "login") {
       await handleLogin(data)
     } else {
@@ -137,21 +140,49 @@ function App() {
     setPublicUser({ guest: true, name: "Guest" })
   }
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem("public_token")
     localStorage.removeItem("public_user")
     enterGuestMode()
     navigate(ROUTES.dashboard, { replace: true })
-  }
+  }, [navigate])
 
-  const updateUser = (updatedUser: any) => {
+  const verifyToken = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/api/public/verify`, {
+        headers: { Authorization: `Bearer ${publicToken}` },
+      })
+      if (res.data?.user) {
+        setPublicUser(res.data.user)
+        persistUser(res.data.user)
+      }
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response?.status !== 401) {
+        console.error("Token verification failed", error)
+      }
+      logout()
+    }
+  }, [logout, publicToken])
+
+  // Check if user is already logged in on mount or when token/user change
+  useEffect(() => {
+    if (!publicToken || !publicUser || publicToken === "guest") return
+
+    const verify = async () => {
+      await verifyToken()
+    }
+
+    void verify()
+  }, [publicToken, publicUser, verifyToken])
+
+  const updateUser = (updatedUser: PublicUser) => {
     setPublicUser(updatedUser)
     persistUser(updatedUser)
   }
 
   const updateUserPhoto = async (photo: string) => {
     if (!publicToken || publicToken === "guest") {
-      updateUser({ ...publicUser, photo })
+      updateUser({ ...(publicUser ?? { guest: true }), photo })
       return
     }
 
@@ -222,7 +253,7 @@ function App() {
         />
 
         <Route
-          path="/pharmacare/*"
+          path="/pharmahub/*"
           element={
             hasAppAccess ? (
               <>

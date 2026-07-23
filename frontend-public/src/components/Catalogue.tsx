@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Search, ShoppingCart, Pill, TrendingUp } from "lucide-react";
 import { API_BASE } from "../config";
 
@@ -22,7 +22,7 @@ export default function Catalogue({ onSelectDrug }: Props) {
   const [filterText, setFilterText] = useState("");
   const [catalogueError, setCatalogueError] = useState("");
 
-  const fetchCatalogue = async (pageNumber: number) => {
+  const fetchCatalogue = useCallback(async (pageNumber: number) => {
     setLoading(true);
     setCatalogueError("");
 
@@ -47,18 +47,25 @@ export default function Catalogue({ onSelectDrug }: Props) {
         const newDrugs = result.data.filter((d: CatalogueDrug) => !existingNames.has(d.name));
         return [...prevDrugs, ...newDrugs];
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error fetching catalogue:", error);
-      setCatalogueError(error.message || "Unable to load catalogue.");
+      if (error instanceof Error) {
+        setCatalogueError(error.message || "Unable to load catalogue.");
+      } else {
+        setCatalogueError("Unable to load catalogue.");
+      }
       setHasMore(false);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchCatalogue(page);
-  }, [page]);
+    const load = async () => {
+      await fetchCatalogue(page)
+    }
+    void load()
+  }, [page, fetchCatalogue]);
 
   const filteredDrugs = drugs.filter((drug) => {
     const search = filterText.trim().toLowerCase();
@@ -91,12 +98,12 @@ export default function Catalogue({ onSelectDrug }: Props) {
       <div className="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="mb-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-success/10 rounded-full mb-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-success/10 rounded-full mb-4">
               <Pill className="w-4 h-4 text-success" />
-              <span className="text-sm font-semibold text-success">Central Pharma</span>
+              <span className="text-sm font-semibold text-success">PharmaHub</span>
             </div>
-            <h1 className="text-4xl font-bold text-slate-900 mb-2">Medication Catalog</h1>
-            <p className="text-slate-600">Browse our extensive collection of medicines and healthcare products</p>
+            <h1 className="text-4xl font-bold text-slate-900 mb-2">Catalogue de médicaments</h1>
+            <p className="text-slate-600">Parcourez notre vaste collection de médicaments et de produits de santé</p>
           </div>
 
           {/* Search Bar */}
@@ -106,7 +113,7 @@ export default function Catalogue({ onSelectDrug }: Props) {
               <input
                 value={filterText}
                 onChange={(e) => setFilterText(e.target.value)}
-                placeholder="Search for medications, categories..."
+                placeholder="Rechercher des médicaments, catégories..."
                 className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition bg-slate-50"
               />
             </div>
@@ -115,7 +122,7 @@ export default function Catalogue({ onSelectDrug }: Props) {
                 onClick={() => setFilterText("")}
                 className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold transition"
               >
-                Clear
+                Effacer
               </button>
             )}
           </div>
@@ -129,10 +136,10 @@ export default function Catalogue({ onSelectDrug }: Props) {
             <p className="text-red-700 font-medium">{catalogueError}</p>
           </div>
         ) : filteredDrugs.length === 0 ? (
-          <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+            <div className="text-center py-16 bg-white rounded-2xl border-2 border-dashed border-slate-200">
             <Pill className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <p className="text-slate-500 text-lg">No medications match your search</p>
-            <p className="text-slate-400 text-sm mt-2">Try adjusting your filters or search terms</p>
+            <p className="text-slate-500 text-lg">Aucun médicament ne correspond à votre recherche</p>
+            <p className="text-slate-400 text-sm mt-2">Essayez d'ajuster vos filtres ou termes de recherche</p>
           </div>
         ) : (
           <div className="space-y-12">
@@ -146,7 +153,7 @@ export default function Catalogue({ onSelectDrug }: Props) {
                       {category}
                     </h2>
                     <p className="text-sm text-slate-500">
-                      {groupedDrugs[category].length} products available
+                      {groupedDrugs[category].length} produits disponibles
                     </p>
                   </div>
                 </div>
@@ -175,20 +182,20 @@ export default function Catalogue({ onSelectDrug }: Props) {
                       {/* Stats */}
                       <div className="space-y-3 pt-4 border-t border-slate-100">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-slate-600">Min Price</span>
+                          <span className="text-sm text-slate-600">Prix min</span>
                           <span className="text-xl font-bold text-success">
                             {drug.minPrice.toLocaleString()} FCFA
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-slate-600">
                           <TrendingUp className="w-4 h-4 text-primary-500" />
-                          <span>Available at <strong>{drug.availableAt}</strong> pharmacies</span>
+                          <span>Disponible dans <strong>{drug.availableAt}</strong> pharmacies</span>
                         </div>
                       </div>
 
                       {/* Call to Action */}
                       <button className="w-full mt-4 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-lg transition text-sm">
-                        View Details
+                        Voir les détails
                       </button>
                     </div>
                   ))}
@@ -206,7 +213,7 @@ export default function Catalogue({ onSelectDrug }: Props) {
               disabled={loading}
               className="px-8 py-4 bg-primary-600 hover:bg-primary-700 disabled:bg-slate-400 text-white font-bold rounded-xl transition inline-flex items-center gap-2"
             >
-              <span>{loading ? "Loading..." : "Load More Medications"}</span>
+              <span>{loading ? "Chargement..." : "Charger plus de médicaments"}</span>
             </button>
           </div>
         )}

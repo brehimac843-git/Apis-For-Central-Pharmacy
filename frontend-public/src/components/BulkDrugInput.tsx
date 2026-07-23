@@ -167,18 +167,18 @@ const BulkDrugInput = forwardRef<BulkDrugInputHandle, Props>(function BulkDrugIn
 
       <div className="relative">
         <Search className="absolute left-4 top-3.5 w-5 h-5 text-slate-400" />
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => handleInputChange(e.target.value)}
-          onFocus={() => {
-            if (input.trim() && suggestions.length > 0) setShowSuggestions(true)
-          }}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          placeholder="Type a medication and pick a suggestion..."
-          className="w-full pl-12 pr-4 py-3 rounded-2xl border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-        />
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onFocus={() => {
+              if (input.trim() && suggestions.length > 0) setShowSuggestions(true)
+            }}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
+            placeholder="Tapez un médicament et choisissez une suggestion..."
+            className="w-full pl-12 pr-4 py-3 rounded-2xl border-2 border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          />
 
         {showSuggestions && suggestions.length > 0 && (
           <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-lg z-20 overflow-hidden">
@@ -201,7 +201,7 @@ const BulkDrugInput = forwardRef<BulkDrugInputHandle, Props>(function BulkDrugIn
       </div>
 
       <p className="text-sm text-slate-500">
-        Start typing to see suggestions and fix typos. Press Enter to add, or paste multiple names separated by commas or new lines.
+        Commencez à taper pour voir des suggestions et corriger les fautes. Appuyez sur Entrée pour ajouter, ou collez plusieurs noms séparés par des virgules ou des retours à la ligne.
       </p>
     </div>
   )

@@ -29,14 +29,16 @@ export default function Logo({
             : "bg-gradient-to-br from-primary-600 to-blue-600"
         }`}
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          className="w-5 h-5 text-white"
-          aria-hidden="true"
-        >
-          <rect x="4" y="8.5" width="16" height="7" rx="3.5" fill="currentColor" />
-          <line x1="12" y1="6" x2="12" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity="0.35" />
+        <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 text-white" aria-hidden="true">
+          <circle cx="12" cy="12" r="2.2" fill="currentColor" />
+          <line x1="12" y1="2" x2="12" y2="6.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <line x1="12" y1="17.5" x2="12" y2="22" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <line x1="2" y1="12" x2="6.5" y2="12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <line x1="17.5" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <circle cx="12" cy="3.5" r="1.2" fill="currentColor" />
+          <circle cx="12" cy="20.5" r="1.2" fill="currentColor" />
+          <circle cx="3.5" cy="12" r="1.2" fill="currentColor" />
+          <circle cx="20.5" cy="12" r="1.2" fill="currentColor" />
         </svg>
       </div>
 
@@ -47,14 +49,14 @@ export default function Logo({
               isLight ? "text-primary-200" : "text-slate-500"
             }`}
           >
-            PharmaCare
+            PharmaHub
           </p>
           <p
             className={`${s.text} font-semibold leading-tight ${
               isLight ? "text-white" : "text-slate-900"
             }`}
           >
-            Your pharmacy hub
+            Votre hub pharmaceutique
           </p>
         </div>
       )}

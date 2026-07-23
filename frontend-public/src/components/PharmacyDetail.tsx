@@ -2,10 +2,21 @@ import { useState } from "react";
 import { ArrowLeft, MapPin, Phone, Clock, Navigation } from "lucide-react";
 import PharmacyMap from "./PharmacyMap"
 
+type Pharmacy = {
+  pharmacy: string
+  city: string
+  latitude: number
+  longitude: number
+  price: number
+  stock: number
+  amo_supported: boolean
+  amo_rate: number | null
+}
+
 type Props = {
-  pharmacy: any;
-  drugName: string;
-  onBack: () => void;
+  pharmacy: Pharmacy
+  drugName: string
+  onBack: () => void
 }
 
 export default function PharmacyDetail({ pharmacy, drugName, onBack }: Props) {
@@ -54,7 +65,7 @@ export default function PharmacyDetail({ pharmacy, drugName, onBack }: Props) {
           className="mb-8 inline-flex items-center gap-2 px-4 py-2 text-slate-600 hover:text-primary-600 font-medium transition"
         >
           <ArrowLeft className="w-5 h-5" />
-          Back to Results
+          Retour aux résultats
         </button>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -68,7 +79,7 @@ export default function PharmacyDetail({ pharmacy, drugName, onBack }: Props) {
                   <h1 className="text-3xl font-bold text-slate-900">{drugName || pharmacy.pharmacy}</h1>
                 </div>
                 <span className="inline-flex items-center rounded-full bg-green-100 text-green-700 px-3 py-1 text-sm font-semibold">
-                  Certified
+                  Certifié
                 </span>
               </div>
               <div className="flex items-center gap-2 text-slate-600 mb-6">
@@ -87,10 +98,10 @@ export default function PharmacyDetail({ pharmacy, drugName, onBack }: Props) {
                   <div className="mt-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-slate-700">
                     <p className="text-sm font-semibold text-emerald-800">AMO reimbursement rate: {pharmacy.amo_rate}%</p>
                     <p className="mt-2 text-sm">
-                      Patient cost after AMO: <span className="font-semibold text-slate-900">{Math.max(0, Math.round(pharmacy.price * (1 - pharmacy.amo_rate / 100)))} FCFA</span>
+                      Coût pour le patient après AMO : <span className="font-semibold text-slate-900">{Math.max(0, Math.round(pharmacy.price * (1 - pharmacy.amo_rate / 100)))} FCFA</span>
                     </p>
                     <p className="mt-1 text-sm text-slate-600">
-                      You save approximately {Math.round(pharmacy.price * (pharmacy.amo_rate / 100))} FCFA with AMO.
+                      Vous économisez environ {Math.round(pharmacy.price * (pharmacy.amo_rate / 100))} FCFA avec l'AMO.
                     </p>
                   </div>
                 ) : (
@@ -107,14 +118,14 @@ export default function PharmacyDetail({ pharmacy, drugName, onBack }: Props) {
                 <Phone className="w-5 h-5 text-primary-500" />
                 <div>
                   <p className="text-sm text-slate-600">Contact Pharmacy</p>
-                  <p className="font-semibold text-slate-900">+212 5 XX XX XX XX</p>
+                  <p className="font-semibold text-slate-900">Contacter la pharmacie</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <Clock className="w-5 h-5 text-primary-500" />
                 <div>
                   <p className="text-sm text-slate-600">Business Hours</p>
-                  <p className="font-semibold text-slate-900">9:00 AM - 8:00 PM</p>
+                  <p className="font-semibold text-slate-900">Heures d'ouverture</p>
                 </div>
               </div>
             </div>
@@ -129,7 +140,7 @@ export default function PharmacyDetail({ pharmacy, drugName, onBack }: Props) {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
                     <h2 className="text-lg font-semibold text-slate-900">Get directions</h2>
-                    <p className="text-sm text-slate-500">Start navigation to the selected pharmacy using your current location.</p>
+                    <p className="text-sm text-slate-500">Itinéraire</p>
                   </div>
                   <button
                     type="button"
@@ -137,7 +148,7 @@ export default function PharmacyDetail({ pharmacy, drugName, onBack }: Props) {
                     className="inline-flex items-center gap-2 rounded-full bg-primary-600 px-5 py-3 text-white font-semibold hover:bg-primary-700 transition"
                   >
                     <Navigation className="w-4 h-4" />
-                    Open directions
+                    Ouvrir l'itinéraire
                   </button>
                 </div>
                 {directionsStatus && (

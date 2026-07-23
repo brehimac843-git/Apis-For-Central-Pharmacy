@@ -1,0 +1,3 @@
+[build]
+  command = "npm --workspace frontend-public run build"
+  publish = "frontend-public/dist"

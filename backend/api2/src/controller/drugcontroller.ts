@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { prisma } from '../db/index';
+import { prisma } from '../db/index.js';
 
 export const listDrugs = async (req: Request, res: Response) => {
   try {
@@ -52,7 +52,7 @@ export const getSuggestions = async (req: Request, res: Response) => {
       `;
     }
 
-    res.json(rows.map(r => r.name));
+    res.json(rows.map((r: { name: string }) => r.name));
   } catch (error) {
     console.error("Error in getSuggestions:", error);
     res.status(500).json({ error: "Suggestion error" });

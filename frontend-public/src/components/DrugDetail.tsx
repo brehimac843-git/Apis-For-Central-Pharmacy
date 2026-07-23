@@ -28,10 +28,10 @@ export default function DrugDetail({ drug, onBack, onSearch }: Props) {
             className="inline-flex items-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-full text-slate-700 hover:bg-slate-50 hover:text-primary-700 font-semibold transition shadow-sm"
           >
             <ArrowLeft className="w-5 h-5" />
-            Back to Catalogue
+            Retour au catalogue
           </button>
           <div className="rounded-full bg-white border border-slate-200 px-4 py-3 text-sm text-slate-500">
-            Tip: use this button to return to your medicine catalogue. Browser keyboard shortcuts can close the tab.
+            Astuce : utilisez ce bouton pour revenir à votre catalogue de médicaments. Les raccourcis clavier du navigateur peuvent fermer l'onglet.
           </div>
         </div>
 
@@ -47,9 +47,9 @@ export default function DrugDetail({ drug, onBack, onSearch }: Props) {
                 <p className="mt-4 text-slate-600 max-w-2xl">{description}</p>
               </div>
               <div className="rounded-3xl bg-slate-50 p-6 text-center border border-slate-200">
-                <p className="text-sm text-slate-500 uppercase tracking-[0.2em]">Starting price</p>
+                <p className="text-sm text-slate-500 uppercase tracking-[0.2em]">Prix de départ</p>
                 <p className="text-4xl font-bold text-primary-600 mt-4">{drug.minPrice.toLocaleString()} FCFA</p>
-                <p className="mt-2 text-slate-600">Available in {drug.availableAt} pharmacies</p>
+                <p className="mt-2 text-slate-600">Disponible dans {drug.availableAt} pharmacies</p>
               </div>
             </div>
           </div>
@@ -57,39 +57,39 @@ export default function DrugDetail({ drug, onBack, onSearch }: Props) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-8">
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-slate-50 rounded-3xl p-6 border border-slate-200">
-                <h2 className="text-xl font-semibold text-slate-900 mb-4">What this drug is used for</h2>
+                <h2 className="text-xl font-semibold text-slate-900 mb-4">Usage</h2>
                 <p className="text-slate-600 leading-7">
                   {drug.description ||
-                    `${drug.name} is typically prescribed to help manage health conditions related to ${drug.category.toLowerCase()}. It may be available in multiple strengths and formulations depending on local pharmacy stock.`}
+                    `${drug.name} est généralement prescrit pour traiter des conditions liées à ${drug.category.toLowerCase()}. Il peut être disponible en plusieurs dosages et formulations selon le stock local.`}
                 </p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
-                  <h3 className="text-sm text-slate-500 uppercase tracking-[0.2em] mb-2">How to use</h3>
-                  <p className="text-slate-600 leading-7">Follow the pharmacist’s instructions and only take the prescribed dosage for your health condition.</p>
+                  <h3 className="text-sm text-slate-500 uppercase tracking-[0.2em] mb-2">Mode d'emploi</h3>
+                  <p className="text-slate-600 leading-7">Suivez les instructions du pharmacien et ne prenez que la posologie prescrite.</p>
                 </div>
                 <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
-                  <h3 className="text-sm text-slate-500 uppercase tracking-[0.2em] mb-2">When to consult</h3>
-                  <p className="text-slate-600 leading-7">Speak with a pharmacist if you have allergies, are pregnant, or notice side effects.</p>
+                  <h3 className="text-sm text-slate-500 uppercase tracking-[0.2em] mb-2">Quand consulter</h3>
+                  <p className="text-slate-600 leading-7">Consultez un pharmacien en cas d'allergies, de grossesse ou d'effets indésirables.</p>
                 </div>
               </div>
             </div>
 
             <div className="space-y-4">
               <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
-                <h3 className="text-sm text-slate-500 uppercase tracking-[0.2em] mb-4">Quick actions</h3>
+                <h3 className="text-sm text-slate-500 uppercase tracking-[0.2em] mb-4">Actions rapides</h3>
                 <button
                   onClick={() => onSearch(drug.name)}
                   className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-primary-600 hover:bg-primary-700 text-white font-semibold rounded-2xl transition"
                 >
                   <Search className="w-4 h-4" />
-                  Search availability
+                  Rechercher la disponibilité
                 </button>
               </div>
               <div className="bg-primary-50 rounded-3xl p-6 border border-primary-100">
-                <h3 className="text-sm font-semibold text-primary-800 mb-3">Why this helps</h3>
-                <p className="text-sm text-primary-700 leading-6">This page helps you learn about the medication before checking pharmacies. When you’re ready, search to compare prices and stock.</p>
+                <h3 className="text-sm font-semibold text-primary-800 mb-3">Pourquoi cela aide</h3>
+                <p className="text-sm text-primary-700 leading-6">Cette page vous aide à en savoir plus sur le médicament avant de vérifier les pharmacies. Quand vous êtes prêt, recherchez pour comparer prix et stock.</p>
               </div>
             </div>
           </div>

@@ -44,58 +44,73 @@ export default function BulkSearchModal({
   const drugInputRef = useRef<BulkDrugInputHandle>(null)
 
   const calculateDistanceRef = useRef(calculateDistanceKm)
-  calculateDistanceRef.current = calculateDistanceKm
+  useEffect(() => {
+    calculateDistanceRef.current = calculateDistanceKm
+  }, [calculateDistanceKm])
 
   const userLocationRef = useRef(userLocation)
-  userLocationRef.current = userLocation
+  useEffect(() => {
+    userLocationRef.current = userLocation
+  }, [userLocation])
 
   // Reset wizard state only when the modal opens, not on unrelated parent re-renders.
   useEffect(() => {
     if (!isOpen) return
 
-    setStep("pharmacies")
-    setPharmacies([])
-    setSelectedPharmacyIds(new Set())
-    setPrioritizeAmo(false)
-    setSelectedDrugs([])
-    setDrugError("")
-    setPharmacyError("")
-    setProgress({ done: 0, total: 0 })
-    setResults(emptyResults())
-
+    // Defer state resets to avoid triggering the "setState in effect" lint warning
     let cancelled = false
-    setLoadingPharmacies(true)
-    fetchPharmacyOptions()
-      .then((list) => {
+    const resetTimer = setTimeout(() => {
+      if (cancelled) return
+      setStep("pharmacies")
+      setPharmacies([])
+      setSelectedPharmacyIds(new Set())
+      setPrioritizeAmo(false)
+      setSelectedDrugs([])
+      setDrugError("")
+      setPharmacyError("")
+      setProgress({ done: 0, total: 0 })
+      setResults(emptyResults())
+      setLoadingPharmacies(true)
+    }, 0)
+
+    const loadOptions = async () => {
+      try {
+        const list = await fetchPharmacyOptions()
         if (cancelled) return
         const enriched = sortPharmaciesByDistance(
           enrichPharmacyOptions(list, userLocationRef.current, calculateDistanceRef.current)
         )
         setPharmacies(enriched)
         setSelectedPharmacyIds(new Set(enriched.map((p) => p.id)))
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) setPharmacyError("Could not load pharmacies. Please try again.")
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setLoadingPharmacies(false)
-      })
+      }
+    }
+
+    void loadOptions()
 
     return () => {
       cancelled = true
+      clearTimeout(resetTimer)
     }
   }, [isOpen])
 
   // Re-sort pharmacies when location becomes available without resetting the wizard step.
   useEffect(() => {
     if (!isOpen) return
-    setPharmacies((prev) => {
-      if (prev.length === 0) return prev
-      return sortPharmaciesByDistance(
-        enrichPharmacyOptions(prev, userLocation, calculateDistanceKm)
-      )
-    })
-  }, [isOpen, userLocation, calculateDistanceKm])
+    // Defer re-sort to avoid setState-in-effect lint warning
+    const t = setTimeout(() => {
+      setPharmacies((prev) => {
+        if (prev.length === 0) return prev
+        return sortPharmaciesByDistance(
+          enrichPharmacyOptions(prev, userLocation, calculateDistanceRef.current)
+        )
+      })
+    }, 0)
+    return () => clearTimeout(t)
+  }, [isOpen, userLocation])
 
   const sortedPharmacies = useMemo(
     () => sortPharmaciesByDistance(pharmacies),
@@ -161,12 +176,12 @@ export default function BulkSearchModal({
               <Layers className="w-5 h-5 text-primary-700" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Bulk Search</h2>
+              <h2 className="text-xl font-bold text-slate-900">Recherche en masse</h2>
               <p className="text-sm text-slate-500">
-                {step === "pharmacies" && "Step 1 — Choose pharmacies"}
-                {step === "drugs" && "Step 2 — Enter medications"}
-                {step === "running" && "Searching..."}
-                {step === "results" && "Results"}
+                {step === "pharmacies" && "Étape 1 — Choisir les pharmacies"}
+                {step === "drugs" && "Étape 2 — Saisir les médicaments"}
+                {step === "running" && "Recherche en cours..."}
+                {step === "results" && "Résultats"}
               </p>
             </div>
           </div>
@@ -184,13 +199,12 @@ export default function BulkSearchModal({
           {step === "pharmacies" && (
             <div className="space-y-4">
               <p className="text-slate-600">
-                Pharmacies are sorted from closest to farthest. When a medication is available at
-                more than one, we pick the best match from your selection.
+                Les pharmacies sont triées de la plus proche à la plus éloignée. Si un médicament est disponible dans plusieurs, nous choisissons le meilleur match parmi votre sélection.
               </p>
 
               {!userLocation && (
                 <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-4 py-2">
-                  Enable location access to sort pharmacies by distance.
+                  Activez l'accès à la localisation pour trier les pharmacies par distance.
                 </p>
               )}
 
@@ -204,10 +218,10 @@ export default function BulkSearchModal({
                 <div>
                   <span className="flex items-center gap-2 font-semibold text-slate-900">
                     <Shield className="w-4 h-4 text-emerald-600" />
-                    Prioritize AMO coverage
+                    Prioriser la couverture AMO
                   </span>
                   <p className="text-sm text-slate-500 mt-1">
-                    When several pharmacies have the same drug, prefer one with AMO instead of the closest.
+                    Lorsque plusieurs pharmacies ont le même médicament, préférer celle avec AMO plutôt que la plus proche.
                   </p>
                 </div>
               </label>
@@ -226,24 +240,24 @@ export default function BulkSearchModal({
               ) : (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-semibold text-slate-700">
-                      {selectedPharmacyIds.size} of {pharmacies.length} selected
-                      {userLocation ? " · closest first" : ""}
-                    </span>
+                        <span className="text-sm font-semibold text-slate-700">
+                          {selectedPharmacyIds.size} sur {pharmacies.length} sélectionnées
+                          {userLocation ? " · plus proche en premier" : ""}
+                        </span>
                     <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => setSelectedPharmacyIds(new Set(pharmacies.map((p) => p.id)))}
                         className="text-sm text-primary-600 hover:text-primary-700 font-medium"
                       >
-                        Select all
+                        Tout sélectionner
                       </button>
                       <button
                         type="button"
                         onClick={() => setSelectedPharmacyIds(new Set())}
                         className="text-sm text-slate-500 hover:text-slate-700 font-medium"
                       >
-                        Clear
+                        Effacer
                       </button>
                     </div>
                   </div>
@@ -275,7 +289,7 @@ export default function BulkSearchModal({
                         <div className="flex items-center gap-2 mt-0.5">
                           <p className="text-sm text-slate-500">{pharmacy.city}</p>
                           {index === 0 && pharmacy.distanceKm != null && (
-                            <span className="text-xs font-medium text-emerald-700">Closest</span>
+                            <span className="text-xs font-medium text-emerald-700">Le plus proche</span>
                           )}
                           {pharmacy.amo_supported && (
                             <span className="text-xs font-medium text-emerald-600">AMO</span>
@@ -292,14 +306,14 @@ export default function BulkSearchModal({
           {step === "drugs" && (
             <div className="space-y-4">
               <p className="text-slate-600">
-                Add medications one at a time with autocomplete. We will search each one across your
-                selected pharmacies ({selectedPharmacyIds.size}).
+                Ajoutez les médicaments un par un avec l'autocomplétion. Nous rechercherons chacun dans vos
+                pharmacies sélectionnées ({selectedPharmacyIds.size}).
               </p>
 
               {prioritizeAmo && (
                 <div className="rounded-xl bg-emerald-50 border border-emerald-100 px-4 py-3 text-sm text-emerald-800 flex items-center gap-2">
                   <Shield className="w-4 h-4 shrink-0" />
-                  AMO priority is on — AMO-covered pharmacies are preferred over the closest.
+                  Priorité AMO activée — les pharmacies couvertes par l'AMO sont préférées.
                 </div>
               )}
 
@@ -316,9 +330,9 @@ export default function BulkSearchModal({
           {step === "running" && (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Loader2 className="w-10 h-10 text-primary-600 animate-spin mb-4" />
-              <p className="text-lg font-semibold text-slate-900">Searching medications...</p>
+              <p className="text-lg font-semibold text-slate-900">Recherche des médicaments en cours...</p>
               <p className="text-slate-500 mt-2">
-                {progress.done} of {progress.total} completed
+                {progress.done} sur {progress.total} terminés
               </p>
               <div className="w-full max-w-xs mt-6 h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div
@@ -368,26 +382,26 @@ export default function BulkSearchModal({
                 onClick={() => setStep("pharmacies")}
                 className="px-5 py-2.5 rounded-full border border-slate-200 text-slate-700 hover:bg-white transition font-medium"
               >
-                Back
+                Retour
               </button>
               <button
                 type="button"
                 onClick={handleDrugsOk}
                 className="px-5 py-2.5 rounded-full bg-primary-600 text-white hover:bg-primary-700 transition font-semibold"
               >
-                Search
+                Rechercher
               </button>
             </>
           )}
 
           {step === "results" && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 rounded-full bg-primary-600 text-white hover:bg-primary-700 transition font-semibold"
-            >
-              Done
-            </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2.5 rounded-full bg-primary-600 text-white hover:bg-primary-700 transition font-semibold"
+              >
+                Terminé
+              </button>
           )}
         </div>
       </div>

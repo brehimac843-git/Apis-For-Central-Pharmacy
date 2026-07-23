@@ -8,11 +8,11 @@
  *
  * 🟢 You can import this file directly.
  */
-export type * from './models/Pharmacy'
-export type * from './models/AgentRecord'
-export type * from './models/AgentActivityLog'
-export type * from './models/DrugVisibility'
-export type * from './models/CentralAdmin'
-export type * from './models/PublicUser'
-export type * from './models/SearchHistory'
-export type * from './commonInputTypes'
+export type * from './models/Pharmacy.js'
+export type * from './models/AgentRecord.js'
+export type * from './models/AgentActivityLog.js'
+export type * from './models/DrugVisibility.js'
+export type * from './models/CentralAdmin.js'
+export type * from './models/PublicUser.js'
+export type * from './models/SearchHistory.js'
+export type * from './commonInputTypes.js'

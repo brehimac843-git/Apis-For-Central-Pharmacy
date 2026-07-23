@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import axios from "axios";
-import { prisma } from "../db";
+import { prisma } from "../db.js";
 
 // 💊 logic for aggregating stock from all pharmacies (Filtered by Drug Visibility rules)
 export const aggregateStock = async (req: Request, res: Response) => {

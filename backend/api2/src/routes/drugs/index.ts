@@ -1,14 +1,15 @@
 import { Router } from 'express';
-import { listDrugs, getSuggestions } from '../../controller/drugcontroller';
+import { listDrugs, getSuggestions } from '../../controller/drugcontroller.js';
 import {
   verifyLocalAgent,
   createLocalAgent,
   updateLocalAgent,
   deleteLocalAgent,
-} from '../../controller/authController';
+} from '../../controller/authController.js';
 
 const router = Router();
 
+router.get('/', (req, res) => res.status(200).json({ status: 'ok', service: 'api2' }));
 router.get('/public-stock', listDrugs);
 router.get('/suggestions', getSuggestions);
 

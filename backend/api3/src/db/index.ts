@@ -1,6 +1,6 @@
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../generated/prisma/client"; // Points to your custom generated folder
+import { PrismaClient } from "../generated/prisma/client.js"; // Points to your custom generated folder
 import dotenv from "dotenv";
 
 dotenv.config();

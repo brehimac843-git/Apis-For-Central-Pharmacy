@@ -1,11 +1,20 @@
 import PharmacyMap from "./PharmacyMap"
 
-type Props = {
-  pharmacy: any;
+type PharmacyDetailProps = {
+  pharmacy: {
+    pharmacy: string;
+    city: string;
+    address?: string;
+    price: number;
+    stock: number;
+    amo_supported: boolean;
+    latitude: number;
+    longitude: number;
+  };
   onBack: () => void;
 }
 
-export default function PharmacyDetail({ pharmacy, onBack }: Props) {
+export default function PharmacyDetail({ pharmacy, onBack }: PharmacyDetailProps) {
   return (
     <div className="app-container" style={{ textAlign: 'left' }}>
       <button onClick={onBack} style={{ marginBottom: '20px', padding: '8px 16px' }}>

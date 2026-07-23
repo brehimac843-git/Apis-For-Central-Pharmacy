@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import axios from "axios";
 import jwt from "jsonwebtoken";
-import { prisma } from "../db";
+import { prisma } from "../db.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "super_secret_pharmacy_key_2026";
 
