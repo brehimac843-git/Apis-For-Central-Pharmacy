@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import axios from "axios";
 import bcrypt from "bcryptjs";
-import { prisma } from "../db";
-import { AuthenticatedRequest } from "../middleware/authMiddleware";
-import { syncAgentCreate, syncAgentDelete, syncAgentUpdate, getBranchSyncWarning } from "../services/branchSync";
+import { prisma } from "../db.js";
+import { AuthenticatedRequest } from "../middleware/authMiddleware.js";
+import { syncAgentCreate, syncAgentDelete, syncAgentUpdate, getBranchSyncWarning } from "../services/branchSync.js";
 
 const API_TIMEOUT = 4000;
 

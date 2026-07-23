@@ -1,6 +1,6 @@
 import { Response } from "express";
-import { prisma } from "../db";
-import { AuthenticatedRequest } from "../middleware/authMiddleware";
+import { prisma } from "../db.js";
+import { AuthenticatedRequest } from "../middleware/authMiddleware.js";
 
 /**
  * 🛡️ Manage whether a specific drug is visible at a specific pharmacy node

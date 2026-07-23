@@ -1,8 +1,9 @@
 {
   "compilerOptions": {
-    "module": "ESNext",
+    "module": "NodeNext",
     "target": "ES2020",
-    "moduleResolution": "Bundler",
+    "moduleResolution": "NodeNext",
+    "moduleDetection": "force",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",                                 // ◄ Required for paths matching
@@ -16,7 +17,7 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": false,
-    "isolatedModules": true
+    "isolatedModules": false
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

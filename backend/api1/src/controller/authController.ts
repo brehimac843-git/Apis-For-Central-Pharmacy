@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { prisma } from "../db/index";
+import { prisma } from "../db/index.js";
 
 export const verifyLocalAgent = async (req: Request, res: Response) => {
   try {

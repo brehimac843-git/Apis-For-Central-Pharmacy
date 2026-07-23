@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { aggregateStock, getCatalogue, getGlobalSuggestions } from "../controllers/searchController";
-import { toggleDrugVisibility } from "../controllers/visibilityController";
-import { agentLogin, centralAdminLogin } from "../controllers/AgentController";
+import { aggregateStock, getCatalogue, getGlobalSuggestions } from "../controllers/searchController.js";
+import { toggleDrugVisibility } from "../controllers/visibilityController.js";
+import { agentLogin, centralAdminLogin } from "../controllers/AgentController.js";
 import {
   requireAuth,
   requireCentralAdmin,
-} from "../middleware/authMiddleware";
+} from "../middleware/authMiddleware.js";
 import {
   listPharmacies,
   createPharmacy,
@@ -21,10 +21,15 @@ import {
   createPublicUser,
   updatePublicUser,
   deletePublicUser,
-} from "../controllers/adminController";
-import { prisma } from "../db";
+} from "../controllers/adminController.js";
+import { prisma } from "../db.js";
 
 const router = Router();
+
+// Railway healthcheck route
+router.get("/", (req, res) => {
+  res.status(200).json({ status: "ok", service: "main-api" });
+});
 
 // 🔓 Public Aggregator & Search Access
 router.get("/aggregate-stock/:drug", aggregateStock);
